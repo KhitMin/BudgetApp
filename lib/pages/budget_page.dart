@@ -1,11 +1,13 @@
-// lib/pages/budget_page.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+
 import '../l10n/app_localizations.dart';
 import 'widgets/expense_input_modal.dart';
+import '../providers/currency_provider.dart';
 
 class BudgetPage extends StatefulWidget {
   const BudgetPage({super.key});
@@ -20,13 +22,16 @@ class _BudgetPageState extends State<BudgetPage> {
   DateTime? _selectedDay;
 
   Map<String, List<Map<String, dynamic>>> _allExpenses = {};
-  List<String> _categories = ['Others'];
+  List<String> _categories = [];
 
   @override
   void initState() {
     super.initState();
     _selectedDay = DateTime.now();
-    _loadData();
+    // initState မှာ context မရသေးတဲ့အတွက် _loadData ကို တိုက်ရိုက်ခေါ်ပါတယ်
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   void _loadData() async {
@@ -48,29 +53,20 @@ class _BudgetPageState extends State<BudgetPage> {
     }
   }
 
-  // =======================================================================
-  // *** အသစ် ထပ်တိုးထားသော Helper Function ***
-  // expense data တွေကို SharedPreferences မှာ သိမ်းဆည်းရန် function
-  // =======================================================================
   Future<void> _saveDataToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('allExpenses', json.encode(_allExpenses));
   }
 
-  // Expense အသစ်တစ်ခု ထည့်ရန်
   void _addExpense(DateTime date, String name, double amount, String category) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
     dailyExpenses.add({'name': name, 'amount': amount, 'category': category});
     _allExpenses[key] = dailyExpenses;
-    _saveDataToPrefs(); // Data ကို သိမ်းဆည်း
+    _saveDataToPrefs();
     setState(() {});
   }
 
-  // =======================================================================
-  // *** အသစ် ထပ်တိုးထားသော Function ***
-  // Expense တစ်ခုကို ပြင်ဆင်ရန်
-  // =======================================================================
   void _updateExpense(
     DateTime date,
     int index,
@@ -80,35 +76,27 @@ class _BudgetPageState extends State<BudgetPage> {
   ) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
-
-    // index မှာရှိတဲ့ record ကို update လုပ်ပါ
     dailyExpenses[index] = {
       'name': name,
       'amount': amount,
       'category': category,
     };
-
     _allExpenses[key] = dailyExpenses;
-    _saveDataToPrefs(); // Data ကို သိမ်းဆည်း
+    _saveDataToPrefs();
     setState(() {});
   }
 
-  // =======================================================================
-  // *** အသစ် ထပ်တိုးထားသော Function ***
-  // Expense တစ်ခုကို ဖျက်ရန်
-  // =======================================================================
   void _deleteExpense(DateTime date, int index) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
-
-    dailyExpenses.removeAt(index); // index မှာရှိတဲ့ record ကို ဖယ်ရှား
-
+    dailyExpenses.removeAt(index);
     _allExpenses[key] = dailyExpenses;
-    _saveDataToPrefs(); // Data ကို သိမ်းဆည်း
+    _saveDataToPrefs();
     setState(() {});
   }
 
   Future<void> _loadCategories() async {
+    final loc = AppLocalizations.of(context);
     final prefs = await SharedPreferences.getInstance();
     final plansString = prefs.getString('all_plans');
     final currentMonthKey = DateFormat('yyyy-MM').format(_focusedDay);
@@ -124,20 +112,20 @@ class _BudgetPageState extends State<BudgetPage> {
       }
     }
 
-    // *** အဓိက ပြင်ဆင်မှု- Category နာမည်တူ (duplicate) များကို ဖယ်ရှားခြင်း ***
-    // List ကို Set အဖြစ်ပြောင်းပြီး duplicate တွေဖယ်ရှားကာ List ပြန်ပြောင်းပါမည်။
     final uniqueCategories = loadedCategories.toSet().toList();
 
-    setState(() {
-      if (uniqueCategories.isNotEmpty) {
-        _categories = uniqueCategories;
-        if (!_categories.contains('Others')) {
-          _categories.add('Others');
+    if (mounted) {
+      setState(() {
+        if (uniqueCategories.isNotEmpty) {
+          _categories = uniqueCategories;
+          if (!_categories.contains(loc.t('others'))) {
+            _categories.add(loc.t('others'));
+          }
+        } else {
+          _categories = [loc.t('others')];
         }
-      } else {
-        _categories = ['Others'];
-      }
-    });
+      });
+    }
   }
 
   List<Map<String, dynamic>> _getDailyExpenses(DateTime day) {
@@ -171,6 +159,9 @@ class _BudgetPageState extends State<BudgetPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final currencySymbol = currencyProvider.currencySymbol;
+
     if (_selectedDay == null) {
       return Scaffold(
         body: Column(
@@ -178,7 +169,7 @@ class _BudgetPageState extends State<BudgetPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 40.0, 16.0, 16.0),
               child: Text(
-                DateFormat.yMMMM().format(_focusedDay),
+                DateFormat.yMMMM(loc.locale.languageCode).format(_focusedDay),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -186,12 +177,12 @@ class _BudgetPageState extends State<BudgetPage> {
               ),
             ),
             Expanded(child: _buildTableCalendar()),
-            const Padding(
-              padding: EdgeInsets.all(24.0),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Text(
-                'ကုန်ကျစရိတ်များ ကြည့်ရှုရန် သို့မဟုတ် ထည့်သွင်းရန် နေ့ရက်တစ်ခုကို ရွေးချယ်ပါ',
+                loc.t('budgetSelectDayPrompt'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
             ),
           ],
@@ -203,7 +194,6 @@ class _BudgetPageState extends State<BudgetPage> {
       return Scaffold(
         body: Column(
           children: [
-            // budget_page.dart ထဲတွင် အစားထိုးရန်
             Padding(
               padding: const EdgeInsets.symmetric(
                 vertical: 12.0,
@@ -212,26 +202,42 @@ class _BudgetPageState extends State<BudgetPage> {
               child: Container(
                 padding: const EdgeInsets.all(12.0),
                 decoration: BoxDecoration(
-                  // *** ဤနေရာတွင် colorScheme ကို ပြောင်းသုံးပါ ***
                   color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Total for ${DateFormat.yMMMM().format(_focusedDay)}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      // Wrap the first Text widget with Expanded
+                      child: Text(
+                        loc.t(
+                          'budgetTotalFor',
+                          args: {
+                            'month': DateFormat.yMMMM(
+                              loc.locale.languageCode,
+                            ).format(_focusedDay),
+                          },
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow
+                            .ellipsis, // Add this to handle long text
                       ),
                     ),
+                    const SizedBox(
+                      width: 8.0,
+                    ), // Add a small space between the two texts
                     Text(
-                      '${NumberFormat('#,##0').format(monthlyTotal)} MMK',
+                      NumberFormat.currency(
+                        symbol: '$currencySymbol ',
+                        decimalDigits: 0,
+                      ).format(monthlyTotal),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        // *** ဤနေရာတွင် colorScheme ကို ပြောင်းသုံးပါ ***
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
@@ -239,14 +245,12 @@ class _BudgetPageState extends State<BudgetPage> {
                 ),
               ),
             ),
-            
+
             _buildTableCalendar(),
             const SizedBox(height: 8.0),
             Expanded(
               child: dailyExpenses.isEmpty
-                  ? const Center(
-                      child: Text('ယနေ့အတွက် ကုန်ကျစရိတ် မှတ်တမ်းမရှိပါ'),
-                    )
+                  ? Center(child: Text(loc.t('budgetNoExpenseForToday')))
                   : ListView.builder(
                       itemCount: dailyExpenses.length,
                       itemBuilder: (context, index) {
@@ -258,17 +262,21 @@ class _BudgetPageState extends State<BudgetPage> {
                           ),
                           child: ListTile(
                             title: Text(expense['name'] as String),
-                            subtitle: Text('Category: ${expense['category']}'),
+                            subtitle: Text(
+                              loc.t(
+                                'budgetCategoryLabel',
+                                args: {'category': expense['category']},
+                              ),
+                            ),
                             trailing: Text(
-                              '${NumberFormat('#,##0').format(expense['amount'])} MMK',
+                              NumberFormat.currency(
+                                symbol: '$currencySymbol ',
+                                decimalDigits: 0,
+                              ).format(expense['amount']),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            // =======================================================================
-                            // *** အဓိက ပြောင်းလဲမှု ***
-                            // ListTile ကို နှိပ်လိုက်ရင် edit/delete dialog ကို ခေါ်ပါမည်။
-                            // =======================================================================
                             onTap: () {
                               _showEditDeleteDialog(
                                 context,
@@ -285,20 +293,17 @@ class _BudgetPageState extends State<BudgetPage> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
-            // async ထည့်ပါ
             if (_selectedDay != null) {
-              // အသစ်สร้างထားတဲ့ modal ကို ခေါ်သုံးပါ
               await showExpenseInputModal(
                 context,
                 _selectedDay!,
                 _categories,
                 _addExpense,
               );
-              // modal ပိတ်ပြီးရင် data အသစ်ပြန် load လုပ်ပါ
               _loadData();
             }
           },
-          tooltip: 'Add Expense',
+          tooltip: loc.t('budgetAddExpenseTooltip'),
           child: const Icon(Icons.add),
         ),
       );
@@ -306,7 +311,9 @@ class _BudgetPageState extends State<BudgetPage> {
   }
 
   Widget _buildTableCalendar() {
+    final loc = AppLocalizations.of(context);
     return TableCalendar(
+      locale: loc.locale.languageCode,
       firstDay: DateTime.utc(2020, 1, 1),
       lastDay: DateTime.utc(2030, 12, 31),
       focusedDay: _focusedDay,
@@ -370,49 +377,37 @@ class _BudgetPageState extends State<BudgetPage> {
     );
   }
 
-  // =======================================================================
-  // *** အဓိက ပြောင်းလဲမှု ***
-  // _showExpenseInputModal ကို edit လုပ်နိုင်ရန် ပြင်ဆင်ထားပါသည်။
-  // index. આપવામાં આવેသောအခါ Edit mode, မဟုတ်ရင် Add mode ဖြစ်ပါသည်။
-  // =======================================================================
-
-  // =======================================================================
-  // *** အသစ် ထပ်တိုးထားသော Function ***
-  // Edit နှင့် Delete ခလုတ်များပါသော Dialog ကို ပြသရန်
-  // =======================================================================
   void _showEditDeleteDialog(BuildContext context, DateTime date, int index) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Action'),
-          content: const Text('What would you like to do with this expense?'),
+          title: Text(loc.t('action')),
+          content: Text(loc.t('confirmDeletePrompt')),
           actions: <Widget>[
             TextButton(
-              child: const Text('Delete'),
+              child: Text(loc.t('delete')),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the action dialog
-                // Show confirmation dialog before deleting
+                Navigator.of(context).pop();
                 showDialog(
                   context: context,
                   builder: (BuildContext c) {
                     return AlertDialog(
-                      title: const Text('Confirm Delete'),
-                      content: const Text(
-                        'Are you sure you want to delete this expense?',
-                      ),
+                      title: Text(loc.t('confirmDelete')),
+                      content: Text(loc.t('confirmDeletePrompt')),
                       actions: [
                         TextButton(
-                          child: const Text('Cancel'),
+                          child: Text(loc.t('cancel')),
                           onPressed: () => Navigator.of(c).pop(),
                         ),
                         TextButton(
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.red),
+                          child: Text(
+                            loc.t('delete'),
+                            style: const TextStyle(color: Colors.red),
                           ),
                           onPressed: () {
-                            Navigator.of(c).pop(); // Close confirmation dialog
+                            Navigator.of(c).pop();
                             _deleteExpense(date, index);
                           },
                         ),
@@ -423,32 +418,18 @@ class _BudgetPageState extends State<BudgetPage> {
               },
             ),
             TextButton(
-              child: const Text('Edit'),
+              child: Text(loc.t('edit')),
               onPressed: () async {
-                // async ထည့်ပါ
-                Navigator.of(context).pop(); // Close the action dialog
-
-                // ပြင်မယ့် expense data ကို ကြိုယူထားပါ
+                Navigator.of(context).pop();
                 final expenseToEdit = _getDailyExpenses(date)[index];
-
-                // ပြင်ဆင်ထားတဲ့ modal အသစ်ကို ခေါ်သုံးပါ
-                await showExpenseInputModal(
-                  context,
-                  date,
-                  _categories,
-                  (savedDate, newName, newAmount, newCategory) {
-                    // modal ကနေ save နှိပ်လိုက်ရင် _updateExpense ကို ခေါ်ပါမယ်
-                    _updateExpense(
-                      date,
-                      index,
-                      newName,
-                      newAmount,
-                      newCategory,
-                    );
-                  },
-                  initialExpense:
-                      expenseToEdit, // ပြင်မယ့် data ကို ထည့်ပေးလိုက်ပါ
-                );
+                await showExpenseInputModal(context, date, _categories, (
+                  savedDate,
+                  newName,
+                  newAmount,
+                  newCategory,
+                ) {
+                  _updateExpense(date, index, newName, newAmount, newCategory);
+                }, initialExpense: expenseToEdit);
               },
             ),
           ],

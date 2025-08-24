@@ -13,6 +13,7 @@ import 'pages/setting_page.dart';
 // providers
 import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/currency_provider.dart';
 
 // l10n
 import 'l10n/app_localizations.dart';
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
         ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => CurrencyProvider(prefs)),
       ],
       child: const AppRoot(),
     );
@@ -50,12 +52,12 @@ class AppRoot extends StatelessWidget {
     return MaterialApp(
       title: 'My Budget App',
       theme: ThemeData(
-        colorSchemeSeed: Colors.blue, // primarySwatch အစား colorSchemeSeed ကိုသုံးတာက ပိုကောင်းပါတယ်
+        primarySwatch: Colors.blue,
         brightness: Brightness.light,
       ),
       darkTheme: ThemeData(
-        colorSchemeSeed: Colors.blue,
         brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
       ),
       themeMode: themeProvider.themeMode,
       locale: localeProvider.locale,
@@ -80,9 +82,6 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-// =======================================================================
-// *** ဤနေရာမှ စ၍ ပြင်ဆင်ထားပါသည် ***
-// =======================================================================
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
@@ -92,11 +91,10 @@ class _MainScreenState extends State<MainScreen> {
       _selectedIndex = index;
     });
   }
-  
+
   // late final အဖြစ်ကြေညာထားသော variable
   late final List<Widget> _widgetOptions;
 
-  // *** အဓိကအရေးကြီးဆုံးအပိုင်း ***
   // initState() function က build() မတိုင်ခင်မှာ အရင် အလုပ်လုပ်ပါတယ်
   // ဒီနေရာမှာ _widgetOptions ကို တန်ဖိုးထည့်သွင်းပေးရပါမယ်
   @override
@@ -120,6 +118,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Budget Planner'),
@@ -129,35 +128,36 @@ class _MainScreenState extends State<MainScreen> {
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: 'Home',
+            label: loc.t('navHome'),
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
-            label: 'Budget',
+            label: loc.t('navBudget'),
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.edit_calendar_outlined),
-            label: 'Planning',
+            label: loc.t('navPlanning'),
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart_outlined),
-            label: 'Reporting',
+            label: loc.t('navReporting'),
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
-            label: 'Setting',
+            label: loc.t('navSetting'),
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary, 
-        unselectedItemColor: Colors.grey, 
-        showUnselectedLabels: true, 
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
       ),
+
     );
   }
 }

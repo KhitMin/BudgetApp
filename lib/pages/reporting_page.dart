@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'dart:math';
+
+import '../providers/currency_provider.dart';
+import '../l10n/app_localizations.dart';
 
 class ReportingPage extends StatefulWidget {
   const ReportingPage({super.key});
@@ -44,6 +48,7 @@ class _ReportingPageState extends State<ReportingPage>
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return;
     setState(() { _isLoading = true; });
 
     final prefs = await SharedPreferences.getInstance();
@@ -58,7 +63,9 @@ class _ReportingPageState extends State<ReportingPage>
     }
 
     _recalculateAllReports();
-    setState(() { _isLoading = false; });
+    if (mounted) {
+      setState(() { _isLoading = false; });
+    }
   }
 
   void _recalculateAllReports() {
@@ -118,7 +125,6 @@ class _ReportingPageState extends State<ReportingPage>
 
   void _calculatePlanningVsActual() {
     final monthKey = DateFormat('yyyy-MM').format(_selectedDate);
-    
     Map<String, double> planned = {};
     if (_allPlansData != null) {
       final allPlans = json.decode(_allPlansData!) as Map<String, dynamic>;
@@ -129,7 +135,6 @@ class _ReportingPageState extends State<ReportingPage>
       }
     }
     _plannedAmounts = planned;
-
     final startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
     final endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
     _actualAmounts = _aggregateExpenses(startOfMonth, endOfMonth);
@@ -137,15 +142,18 @@ class _ReportingPageState extends State<ReportingPage>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Reports"),
+        title: Text(loc.t('reportTitle')),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: "Weekly"),
-            Tab(text: "Monthly"),
-            Tab(text: "Yearly"),
+          tabs: [
+            Tab(text: loc.t('reportWeekly')),
+            Tab(text: loc.t('reportMonthly')),
+            Tab(text: loc.t('reportYearly')),
           ],
         ),
       ),
@@ -154,77 +162,56 @@ class _ReportingPageState extends State<ReportingPage>
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildWeeklyReportView(),
-                _buildMonthlyReportView(),
-                _buildYearlyReportView(),
+                _buildWeeklyReportView(currencyProvider.currencySymbol),
+                _buildMonthlyReportView(currencyProvider.currencySymbol),
+                _buildYearlyReportView(currencyProvider.currencySymbol),
               ],
             ),
     );
   }
   
-  Widget _buildWeeklyReportView() {
-    final dayOfWeek = _selectedDate.weekday == 7 ? 0 : _selectedDate.weekday;
-    final startOfWeek = _selectedDate.subtract(Duration(days: dayOfWeek));
+  Widget _buildWeeklyReportView(String currencySymbol) {
+    final loc = AppLocalizations.of(context);
+    final startOfWeek = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
-    String dateRangeDisplay = '${DateFormat.MMMd().format(startOfWeek)} - ${DateFormat.yMMMd().format(endOfWeek)}';
-    
+    String dateRangeDisplay = '${DateFormat.MMMd(loc.locale.languageCode).format(startOfWeek)} - ${DateFormat.yMMMd(loc.locale.languageCode).format(endOfWeek)}';
     final totalWeeklySpend = _weeklyCategoryExpenses.values.fold(0.0, (a, b) => a + b);
 
     return Column(
       children: [
         _buildDateNavigator(
           display: dateRangeDisplay,
-          onPrevious: () {
-            setState(() {
-              _selectedDate = _selectedDate.subtract(const Duration(days: 7));
-              _calculateWeeklyExpenses();
-            });
-          },
-          onNext: () {
-            setState(() {
-              _selectedDate = _selectedDate.add(const Duration(days: 7));
-              _calculateWeeklyExpenses();
-            });
-          },
+          onPrevious: () => setState(() { _selectedDate = _selectedDate.subtract(const Duration(days: 7)); _calculateWeeklyExpenses(); }),
+          onNext: () => setState(() { _selectedDate = _selectedDate.add(const Duration(days: 7)); _calculateWeeklyExpenses(); }),
         ),
         Expanded(
           child: _buildPieChartSection(
-            _weeklyCategoryExpenses,
-            "Weekly Expenses",
-            totalWeeklySpend
+            data: _weeklyCategoryExpenses,
+            title: loc.t('reportWeekly'),
+            total: totalWeeklySpend,
+            currencySymbol: currencySymbol,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMonthlyReportView() {
+  Widget _buildMonthlyReportView(String currencySymbol) {
+    final loc = AppLocalizations.of(context);
     final totalMonthlySpend = _monthlyCategoryExpenses.values.fold(0.0, (a, b) => a + b);
 
     return Column(
       children: [
         _buildDateNavigator(
-          display: DateFormat.yMMMM().format(_selectedDate),
-          onPrevious: () {
-            setState(() {
-              _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
-              _calculateMonthlyExpenses();
-              _calculatePlanningVsActual();
-            });
-          },
-          onNext: () {
-            setState(() {
-              _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
-              _calculateMonthlyExpenses();
-              _calculatePlanningVsActual();
-            });
-          },
+          display: DateFormat.yMMMM(loc.locale.languageCode).format(_selectedDate),
+          onPrevious: () => setState(() { _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1); _recalculateAllReports(); }),
+          onNext: () => setState(() { _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1); _recalculateAllReports(); }),
         ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
-              _buildTotalExpensesCard("Total Monthly Spend", totalMonthlySpend),
+              _buildTotalExpensesCard(loc.t('reportTotalSpend'), totalMonthlySpend, currencySymbol),
               const SizedBox(height: 20),
               Card(
                 elevation: 2,
@@ -234,16 +221,15 @@ class _ReportingPageState extends State<ReportingPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       const Text("Monthly Expenses by Category", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                       Text(loc.t('reportMonthlyExpensesByCategory'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                        const SizedBox(height: 20),
                        SizedBox(height: 250, child: _buildPieChart(_monthlyCategoryExpenses)),
-                       _buildLegend(_monthlyCategoryExpenses),
+                       _buildLegend(_monthlyCategoryExpenses, currencySymbol),
                     ],
                   ),
                 ),
               ),
               const Divider(height: 40),
-              // *** အဓိက ပြင်ဆင်မှု (၁) - Bar Chart Report ကို Card နဲ့ စုစည်းပြီး Legend ထည့်သွင်းခြင်း ***
               Card(
                  elevation: 2,
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -252,11 +238,11 @@ class _ReportingPageState extends State<ReportingPage>
                    child: Column(
                      crossAxisAlignment: CrossAxisAlignment.start,
                      children: [
-                       const Text("Planning vs Actual Spending", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                       Text(loc.t('reportPlanningVsActual'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                        const SizedBox(height: 16),
-                       _buildBarChartLegend(), // Legend ကို ဤနေရာတွင်ထည့်ပါ
+                       _buildBarChartLegend(),
                        const SizedBox(height: 20),
-                       SizedBox(height: 300, child: _buildBarChart()),
+                       SizedBox(height: 300, child: _buildBarChart(currencySymbol)),
                      ],
                    ),
                  ),
@@ -268,50 +254,34 @@ class _ReportingPageState extends State<ReportingPage>
     );
   }
 
-// Yearly Report View
-  Widget _buildYearlyReportView() {
-    // *** အဓိက ပြင်ဆင်မှု- Yearly expenses များကို ကြီးစဉ်ငယ်လိုက် sorting လုပ်ခြင်း ***
-    // 1. Map entries တွေကို List အဖြစ်ပြောင်းပါ
-    final sortedYearlyExpenses = _yearlyCategoryExpenses.entries.toList();
-
-    // 2. List ကို value (ကုန်ကျငွေ) အများအနည်းအလိုက် ကြီးစဉ်ငယ်လိုက် စီပါ
-    sortedYearlyExpenses.sort((a, b) => b.value.compareTo(a.value));
+  Widget _buildYearlyReportView(String currencySymbol) {
+    final loc = AppLocalizations.of(context);
+    final sortedYearlyExpenses = _yearlyCategoryExpenses.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     return Column(
       children: [
         _buildDateNavigator(
-          display: DateFormat.y().format(_selectedDate),
-          onPrevious: () {
-            setState(() {
-              _selectedDate = DateTime(_selectedDate.year - 1, _selectedDate.month, 1);
-              _calculateYearlyData();
-            });
-          },
-          onNext: () {
-            setState(() {
-              _selectedDate = DateTime(_selectedDate.year + 1, _selectedDate.month, 1);
-              _calculateYearlyData();
-            });
-          },
+          display: DateFormat.y(loc.locale.languageCode).format(_selectedDate),
+          onPrevious: () => setState(() { _selectedDate = DateTime(_selectedDate.year - 1); _calculateYearlyData(); }),
+          onNext: () => setState(() { _selectedDate = DateTime(_selectedDate.year + 1); _calculateYearlyData(); }),
         ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
-              _buildSummaryCard("Total Income", _yearlyTotalIncome, Colors.green),
-              _buildSummaryCard("Total Expenses", _yearlyTotalExpense, Colors.red),
+              _buildSummaryCard(loc.t('reportYearlyIncome'), _yearlyTotalIncome, Colors.green, currencySymbol),
+              _buildSummaryCard(loc.t('reportYearlyExpenses'), _yearlyTotalExpense, Colors.red, currencySymbol),
               const Divider(height: 40),
-              const Text("Expenses by Category (Yearly)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(loc.t('reportYearlyExpensesByCategory'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               if (sortedYearlyExpenses.isEmpty)
-                const Center(child: Padding(padding: EdgeInsets.all(20.0), child: Text("No yearly expense data.")))
+                Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(loc.t('reportNoData'))))
               else
-                // 3. Sorting လုပ်ပြီးသား list အသစ်ကို အသုံးပြုပြီး Widget တွေ တည်ဆောက်ပါ
                 ...sortedYearlyExpenses.map((entry) => Card(
                       child: ListTile(
                         title: Text(entry.key),
                         trailing: Text(
-                          NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(entry.value),
+                          NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(entry.value),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -322,7 +292,7 @@ class _ReportingPageState extends State<ReportingPage>
       ],
     );
   }
-
+  
   Widget _buildDateNavigator({required String display, required VoidCallback onPrevious, required VoidCallback onNext}) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -337,14 +307,15 @@ class _ReportingPageState extends State<ReportingPage>
     );
   }
 
-  Widget _buildPieChartSection(Map<String, double> data, String title, double total) {
+  Widget _buildPieChartSection({required Map<String, double> data, required String title, required double total, required String currencySymbol}) {
+    final loc = AppLocalizations.of(context);
     if (data.isEmpty) {
-      return Center(child: Text("No data for this period.", style: TextStyle(color: Colors.grey.shade600)));
+      return Center(child: Text(loc.t('reportNoData'), style: TextStyle(color: Colors.grey.shade600)));
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
-        _buildTotalExpensesCard("Total Spend", total),
+        _buildTotalExpensesCard(loc.t('reportTotalSpend'), total, currencySymbol),
         const SizedBox(height: 20),
         Card(
           elevation: 2,
@@ -358,7 +329,7 @@ class _ReportingPageState extends State<ReportingPage>
                 const SizedBox(height: 20),
                 SizedBox(height: 250, child: _buildPieChart(data)),
                 const SizedBox(height: 20),
-                _buildLegend(data),
+                _buildLegend(data, currencySymbol),
               ],
             ),
           ),
@@ -367,33 +338,18 @@ class _ReportingPageState extends State<ReportingPage>
     );
   }
   
-Widget _buildTotalExpensesCard(String title, double total) {
+  Widget _buildTotalExpensesCard(String title, double total, String currencySymbol) {
     return Card(
       elevation: 2,
       color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        // *** အဓိက ပြင်ဆင်မှု ***
-        // Row ထဲက widget တွေကို Expanded နဲ့ ထိန်းချုပ်လိုက်ပါပြီ
         child: Row(
-          // mainAxisAlignment: MainAxisAlignment.spaceBetween, ကို ဖယ်ရှားလိုက်ပါ
           children: [
-            // Title Text ကို Expanded ဖြင့် ထုပ်ပိုးလိုက်ပါ
-            // ဒါမှ သူက ကျန်တဲ့နေရာကို အလိုအလျောက် ယူသွားပါလိမ့်မယ်
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              ),
-            ),
-            // Amount Text ကတော့ သူ့နေရာသူ ပုံမှန်အတိုင်း ရှိနေပါမယ်
+            Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500))),
             Text(
-              NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(total),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(total),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
             ),
           ],
         ),
@@ -402,31 +358,25 @@ Widget _buildTotalExpensesCard(String title, double total) {
   }
   
    Widget _buildPieChart(Map<String, double> data) {
-    if (data.isEmpty) return const Center(child: Text("No expenses"));
-    
+    if (data.isEmpty) return Center(child: Text(AppLocalizations.of(context).t('reportNoData')));
     int colorIndex = 0;
     final totalValue = data.values.fold(0.0, (sum, item) => sum + item);
-
     return PieChart(
       PieChartData(
         sections: data.entries.map((entry) {
           final color = _pieChartColors[colorIndex++ % _pieChartColors.length];
           final percentage = totalValue > 0 ? (entry.value / totalValue) * 100 : 0;
           return PieChartSectionData(
-            color: color,
-            value: entry.value,
-            title: '${percentage.toStringAsFixed(0)}%',
-            radius: 100,
+            color: color, value: entry.value, title: '${percentage.toStringAsFixed(0)}%', radius: 100,
             titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
           );
         }).toList(),
-        sectionsSpace: 2,
-        centerSpaceRadius: 40,
+        sectionsSpace: 2, centerSpaceRadius: 40,
       ),
     );
   }
 
-  Widget _buildLegend(Map<String, double> data) {
+  Widget _buildLegend(Map<String, double> data, String currencySymbol) {
     int colorIndex = 0;
     return Column(
       children: data.entries.map((entry) {
@@ -439,7 +389,7 @@ Widget _buildTotalExpensesCard(String title, double total) {
               const SizedBox(width: 8),
               Expanded(child: Text(entry.key, style: const TextStyle(fontSize: 14))),
               Text(
-                NumberFormat.currency(symbol: ' MMK', decimalDigits: 0).format(entry.value),
+                NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(entry.value),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
               ),
             ],
@@ -449,33 +399,22 @@ Widget _buildTotalExpensesCard(String title, double total) {
     );
   }
 
-  // *** အသစ်ထပ်တိုး - Bar Chart အတွက် Legend Widget ***
   Widget _buildBarChartLegend() {
+    final loc = AppLocalizations.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            Container(width: 16, height: 16, color: Colors.blue.shade300),
-            const SizedBox(width: 8),
-            const Text('Planned'),
-          ],
-        ),
+        Row(children: [Container(width: 16, height: 16, color: Colors.blue.shade300), const SizedBox(width: 8), Text(loc.t('reportPlanned'))]),
         const SizedBox(width: 24),
-        Row(
-          children: [
-            Container(width: 16, height: 16, color: Colors.red.shade300),
-            const SizedBox(width: 8),
-            const Text('Actual'),
-          ],
-        ),
+        Row(children: [Container(width: 16, height: 16, color: Colors.red.shade300), const SizedBox(width: 8), Text(loc.t('reportActual'))]),
       ],
     );
   }
 
-  Widget _buildBarChart() {
+  Widget _buildBarChart(String currencySymbol) {
+    final loc = AppLocalizations.of(context);
     final allCategories = {..._plannedAmounts, ..._actualAmounts}.keys.toList();
-    if (allCategories.isEmpty) return const Center(child: Text("No planning or actual data"));
+    if (allCategories.isEmpty) return Center(child: Text(loc.t('reportNoData')));
 
     double maxY = 0;
     for (var category in allCategories) {
@@ -500,26 +439,14 @@ Widget _buildTotalExpensesCard(String title, double total) {
           );
         }),
         titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (double value, TitleMeta meta) {
-                final index = value.toInt();
-                if (index >= 0 && index < allCategories.length) {
-                  return SideTitleWidget(
-                    axisSide: meta.axisSide,
-                    space: 4.0,
-                    child: Text(allCategories[index], style: const TextStyle(fontSize: 10)),
-                  );
-                }
-                return const Text('');
-              },
-              reservedSize: 38,
-            ),
-          ),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 50,
-             getTitlesWidget: (value, meta) => Text(NumberFormat.compact().format(value), style: const TextStyle(fontSize: 10)),
-          )),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (double value, TitleMeta meta) {
+            final index = value.toInt();
+            if (index >= 0 && index < allCategories.length) {
+              return SideTitleWidget(axisSide: meta.axisSide, space: 4.0, child: Text(allCategories[index], style: const TextStyle(fontSize: 10)));
+            }
+            return const Text('');
+          }, reservedSize: 38)),
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 50, getTitlesWidget: (value, meta) => Text(NumberFormat.compact().format(value), style: const TextStyle(fontSize: 10)))),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
@@ -528,13 +455,13 @@ Widget _buildTotalExpensesCard(String title, double total) {
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              String label = rodIndex == 0 ? 'Planned' : 'Actual';
+              String label = rodIndex == 0 ? loc.t('reportPlanned') : loc.t('reportActual');
               return BarTooltipItem(
                 '$label\n',
                 const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 children: <TextSpan>[
                   TextSpan(
-                    text: NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(rod.toY),
+                    text: NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(rod.toY),
                     style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -546,7 +473,7 @@ Widget _buildTotalExpensesCard(String title, double total) {
     );
   }
 
-  Widget _buildSummaryCard(String title, double amount, Color color) {
+  Widget _buildSummaryCard(String title, double amount, Color color, String currencySymbol) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -556,7 +483,7 @@ Widget _buildTotalExpensesCard(String title, double total) {
           children: [
             Text(title, style: const TextStyle(fontSize: 18)),
             Text(
-              NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(amount),
+              NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(amount),
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
             ),
           ],

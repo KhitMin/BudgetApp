@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:convert';
 import 'dart:math';
 
-// Refactor လုပ်ထားတဲ့ modal ကို import လုပ်ပါ
 import 'widgets/expense_input_modal.dart';
+import '../providers/currency_provider.dart';
+import '../l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
-  // *** အဓိက ပြင်ဆင်မှု (၁) ***
-  // MainScreen ကနေ tab ပြောင်းလဲပေးမယ့် function ကို လက်ခံဖို့ variable ကြေညာပါ
   final Function(int) onNavigateToTab;
 
   const HomePage({
     super.key,
-    required this.onNavigateToTab, //
+    required this.onNavigateToTab,
   });
 
   @override
@@ -23,36 +23,35 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Data variables
   double _totalIncome = 0.0;
   double _totalSpent = 0.0;
   List<Map<String, dynamic>> _recentTransactions = [];
   Map<String, double> _topCategories = {};
-  List<String> _categories = ['Others'];
+  List<String> _categories = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    // initState ပြီးမှ data load လုပ်ရန်
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDashboardData();
+    });
   }
 
-  // SharedPreferences ကနေ data အားလုံးကို load လုပ်ပြီး တွက်ချက်မယ့် মূল function
   Future<void> _loadDashboardData() async {
-    // initState ပြီးမှ setState ခေါ်တာ သေချာအောင်လုပ်ပါ
-    if(mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
+    if (mounted) setState(() { _isLoading = true; });
 
+    // *** အဓိက ပြင်ဆင်မှု (၁) - AppLocalizations ကို context ရှိတဲ့နေရာမှာပဲ ခေါ်ပါ ***
+    // ဒီ function ကို didChangeDependencies သို့မဟုတ် build method ကနေ ခေါ်ရပါမယ်။
+    // အခုတော့ didChangeDependencies ကိုသုံးပါမယ်။
+    final loc = AppLocalizations.of(context);
     final prefs = await SharedPreferences.getInstance();
     final currentMonth = DateTime.now();
     final monthKey = DateFormat('yyyy-MM').format(currentMonth);
 
-    // 1. Load Incomes and Plans
     double incomeThisMonth = 0;
-    List<String> categoriesThisMonth = ['Others'];
+    List<String> categoriesThisMonth = [loc.t('others')];
     final plansString = prefs.getString('all_plans');
     if (plansString != null) {
       final allPlans = json.decode(plansString) as Map<String, dynamic>;
@@ -67,8 +66,7 @@ class _HomePageState extends State<HomePage> {
 
     final incomesString = prefs.getString('all_incomes');
     if (incomesString != null) {
-      final allIncomes =
-          json.decode(incomesString) as Map<String, dynamic>;
+      final allIncomes = json.decode(incomesString) as Map<String, dynamic>;
       if (allIncomes.containsKey(monthKey)) {
         final List<dynamic> currentMonthIncomes = allIncomes[monthKey];
         incomeThisMonth += currentMonthIncomes.fold(
@@ -76,26 +74,19 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    // 2. Load Expenses
     double spentThisMonth = 0;
     List<Map<String, dynamic>> allExpensesList = [];
     Map<String, double> categorySpending = {};
-
     final expensesString = prefs.getString('allExpenses');
     if (expensesString != null) {
-      final allExpenses =
-          json.decode(expensesString) as Map<String, dynamic>;
+      final allExpenses = json.decode(expensesString) as Map<String, dynamic>;
       allExpenses.forEach((dateString, expenses) {
         final date = DateTime.parse(dateString);
         final expenseList = List<Map<String, dynamic>>.from(expenses);
-
-        // Add date to each expense for sorting
         for (var expense in expenseList) {
           allExpensesList.add({...expense, 'date': date});
         }
-
-        if (date.month == currentMonth.month &&
-            date.year == currentMonth.year) {
+        if (date.month == currentMonth.month && date.year == currentMonth.year) {
           for (var expense in expenseList) {
             spentThisMonth += (expense['amount'] as num).toDouble();
             final category = expense['category'] as String;
@@ -107,18 +98,14 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    // 3. Sort and get recent transactions
-    allExpensesList.sort((a, b) => (b['date'] as DateTime)
-        .compareTo(a['date'] as DateTime));
+    allExpensesList.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     _recentTransactions = allExpensesList.take(3).toList();
 
-    // 4. Sort and get top categories
     var sortedCategories = categorySpending.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     _topCategories = Map.fromEntries(sortedCategories.take(4));
 
-    // 5. Update state
-    if(mounted) {
+    if (mounted) {
       setState(() {
         _totalIncome = incomeThisMonth;
         _totalSpent = spentThisMonth;
@@ -128,27 +115,19 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Expense အသစ်ထည့်ပြီး data သိမ်းဆည်းရန် function
   Future<void> _addExpense(DateTime date, String name, double amount, String category) async {
     final prefs = await SharedPreferences.getInstance();
     final key = DateFormat('yyyy-MM-dd').format(date);
-
     final expensesString = prefs.getString('allExpenses');
     Map<String, dynamic> allExpenses = {};
     if (expensesString != null) {
       allExpenses = json.decode(expensesString);
     }
-
     List<dynamic> dailyExpenses = allExpenses[key] ?? [];
-    dailyExpenses.add({
-      'name': name,
-      'amount': amount,
-      'category': category,
-    });
+    dailyExpenses.add({'name': name, 'amount': amount, 'category': category});
     allExpenses[key] = dailyExpenses;
-    
     await prefs.setString('allExpenses', json.encode(allExpenses));
-    _loadDashboardData(); // Refresh dashboard
+    _loadDashboardData();
   }
 
   @override
@@ -177,6 +156,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMonthlySummaryCard() {
+    final loc = AppLocalizations.of(context);
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
     final remaining = _totalIncome - _totalSpent;
     final progress = _totalIncome > 0 ? (_totalSpent / _totalIncome).clamp(0, 1) : 0.0;
 
@@ -189,21 +170,21 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Summary for ${DateFormat.yMMMM().format(DateTime.now())}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+              loc.t('homeSummaryTitle', args: {'month': DateFormat.yMMMM(loc.locale.languageCode).format(DateTime.now())}),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
             ),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _summaryItem('Income', _totalIncome, Colors.green),
-                _summaryItem('Spent', _totalSpent, Colors.red),
+                _summaryItem(loc.t('homeIncome'), _totalIncome, Colors.green),
+                _summaryItem(loc.t('homeSpent'), _totalSpent, Colors.red),
               ],
             ),
             const SizedBox(height: 20),
-            const Text('Remaining', style: TextStyle(fontSize: 16, color: Colors.grey)),
+            Text(loc.t('homeRemaining'), style: const TextStyle(fontSize: 16, color: Colors.grey)),
             Text(
-              '${NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(remaining)}',
+              NumberFormat.currency(symbol: '${currencyProvider.currencySymbol} ', decimalDigits: 0).format(remaining),
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -227,12 +208,13 @@ class _HomePageState extends State<HomePage> {
   }
   
   Widget _summaryItem(String title, double amount, Color color) {
+    final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontSize: 16, color: Colors.grey)),
         Text(
-          NumberFormat.currency(symbol: 'MMK ', decimalDigits: 0).format(amount),
+          NumberFormat.currency(symbol: '${currencyProvider.currencySymbol} ', decimalDigits: 0).format(amount),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
         ),
       ],
@@ -240,12 +222,13 @@ class _HomePageState extends State<HomePage> {
   }
   
   Widget _buildQuickActionsCard() {
+    final loc = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
             icon: const Icon(Icons.add_card),
-            label: const Text('Add Expense'),
+            label: Text(loc.t('homeAddExpense')),
             onPressed: () async {
               await showExpenseInputModal(context, DateTime.now(), _categories, _addExpense);
             },
@@ -259,13 +242,8 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: OutlinedButton.icon(
             icon: const Icon(Icons.bar_chart),
-            label: const Text('View Reports'),
-            onPressed: () {
-              // *** အဓိက ပြင်ဆင်မှု (၂) ***
-              // SnackBar ပြမယ့်အစား Parent (MainScreen) က ပေးလိုက်တဲ့ function ကိုခေါ်ပါ
-              // Reporting tab ရဲ့ index က 3 ဖြစ်ပါတယ် (Home=0, Budget=1, Planning=2, Reporting=3)
-              widget.onNavigateToTab(3);
-            },
+            label: Text(loc.t('homeViewReports')),
+            onPressed: () => widget.onNavigateToTab(3),
              style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -277,6 +255,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRecentTransactionsCard() {
+    final loc = AppLocalizations.of(context);
+    final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -285,19 +265,16 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Recent Transactions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text(loc.t('homeRecentTransactions'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             if (_recentTransactions.isEmpty)
-              const Center(child: Text('No transactions yet.', style: TextStyle(color: Colors.grey))),
+              Center(child: Text(loc.t('homeNoTransactions'), style: const TextStyle(color: Colors.grey))),
             ..._recentTransactions.map((tx) => ListTile(
                   leading: const Icon(Icons.receipt_long, color: Colors.blueGrey),
                   title: Text(tx['name']),
-                  subtitle: Text(DateFormat.yMMMd().format(tx['date'])),
+                  subtitle: Text(DateFormat.yMMMd(loc.locale.languageCode).format(tx['date'])),
                   trailing: Text(
-                    '${NumberFormat.currency(symbol: '', decimalDigits: 0).format(tx['amount'])} MMK',
+                    NumberFormat.currency(symbol: '${currencyProvider.currencySymbol} ', decimalDigits: 0).format(tx['amount']),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 )),
@@ -308,6 +285,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTopCategoriesCard() {
+    final loc = AppLocalizations.of(context);
     final List<Color> pieColors = [
       Colors.blue, Colors.red, Colors.green, Colors.orange, Colors.purple
     ];
@@ -321,10 +299,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Top Spending Categories',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text(loc.t('homeTopCategories'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -375,19 +350,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildFinancialTipCard() {
+    final loc = AppLocalizations.of(context);
     return Card(
       color: Colors.blue.shade50,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: const Padding(
+      child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            Icon(Icons.lightbulb_outline, color: Colors.blue, size: 30),
-            SizedBox(width: 16),
+            const Icon(Icons.lightbulb_outline, color: Colors.blue, size: 30),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
-                'Tip: Review your monthly subscriptions to find potential savings!',
-                style: TextStyle(fontSize: 14, color: Colors.black87),
+                loc.t('homeFinancialTip'),
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
               ),
             ),
           ],
