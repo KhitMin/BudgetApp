@@ -1,29 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// သင်สร้างထားတဲ့ page တွေကို import လုပ်ပါ
-// မှတ်ချက်: သင့် project ရဲ့ file structure အတိုင်း path ကို ပြင်ဆင်ရန်လို सकताသည်
+// pages
 import 'pages/home_page.dart';
 import 'pages/budget_page.dart';
 import 'pages/planning_page.dart';
 import 'pages/reporting_page.dart';
 import 'pages/setting_page.dart';
 
-void main() {
-  runApp(const MyApp());
+// providers
+import 'providers/theme_provider.dart';
+import 'providers/locale_provider.dart';
+
+// l10n
+import 'l10n/app_localizations.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  runApp(MyApp(prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+  const MyApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
+      ],
+      child: const AppRoot(),
+    );
+  }
+}
+
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
+
     return MaterialApp(
       title: 'My Budget App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        // App တစ်ခုလုံးအတွက် font ကို Zawgyi သို့မဟုတ် Unicode သတ်မှတ်နိုင်သည်
-        // fontFamily: 'Pyidaungsu', 
+        brightness: Brightness.light,
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
+      ),
+      themeMode: themeProvider.themeMode,
+      locale: localeProvider.locale,
+      supportedLocales: const [Locale('en'), Locale('my')],
+      localizationsDelegates: [
+        const AppLocalizationsDelegate(),
+        // add default material localizations so widgets like date pickers work
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       home: const MainScreen(),
     );
@@ -39,15 +82,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  // လက်ရှိရွေးထားတဲ့ tab index ကို သိမ်းရန်
-  int _selectedIndex = 0; 
+  int _selectedIndex = 0;
 
-  // tab တစ်ခုချင်းစီအတွက် ပြသမယ့် page တွေ
-  // ဒီနေရာမှာ သင်สร้างထားတဲ့ page widget တွေကို ထည့်ပေးရပါမယ်
   static const List<Widget> _widgetOptions = <Widget>[
-    HomePage(),       // Index 0
-    BudgetPage(),     // Index 1
-    PlanningPage(),   // Index 2
+    HomePage(),
+    BudgetPage(),
+    PlanningPage(),
     ReportingPage(),  // Index 3
     SettingPage(),    // Index 4
   ];

@@ -4,7 +4,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-
+import '../l10n/app_localizations.dart';
+import 'widgets/expense_input_modal.dart';
 
 class BudgetPage extends StatefulWidget {
   const BudgetPage({super.key});
@@ -41,11 +42,12 @@ class _BudgetPageState extends State<BudgetPage> {
     final expensesString = prefs.getString('allExpenses');
     if (expensesString != null) {
       final decodedData = json.decode(expensesString) as Map<String, dynamic>;
-      _allExpenses = decodedData.map((key, value) =>
-          MapEntry(key, List<Map<String, dynamic>>.from(value)));
+      _allExpenses = decodedData.map(
+        (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
+      );
     }
   }
-  
+
   // =======================================================================
   // *** အသစ် ထပ်တိုးထားသော Helper Function ***
   // expense data တွေကို SharedPreferences မှာ သိမ်းဆည်းရန် function
@@ -54,16 +56,12 @@ class _BudgetPageState extends State<BudgetPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('allExpenses', json.encode(_allExpenses));
   }
-  
+
   // Expense အသစ်တစ်ခု ထည့်ရန်
   void _addExpense(DateTime date, String name, double amount, String category) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
-    dailyExpenses.add({
-      'name': name,
-      'amount': amount,
-      'category': category,
-    });
+    dailyExpenses.add({'name': name, 'amount': amount, 'category': category});
     _allExpenses[key] = dailyExpenses;
     _saveDataToPrefs(); // Data ကို သိမ်းဆည်း
     setState(() {});
@@ -73,10 +71,16 @@ class _BudgetPageState extends State<BudgetPage> {
   // *** အသစ် ထပ်တိုးထားသော Function ***
   // Expense တစ်ခုကို ပြင်ဆင်ရန်
   // =======================================================================
-  void _updateExpense(DateTime date, int index, String name, double amount, String category) {
+  void _updateExpense(
+    DateTime date,
+    int index,
+    String name,
+    double amount,
+    String category,
+  ) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
-    
+
     // index မှာရှိတဲ့ record ကို update လုပ်ပါ
     dailyExpenses[index] = {
       'name': name,
@@ -96,7 +100,7 @@ class _BudgetPageState extends State<BudgetPage> {
   void _deleteExpense(DateTime date, int index) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     final dailyExpenses = _getDailyExpenses(date);
-    
+
     dailyExpenses.removeAt(index); // index မှာရှိတဲ့ record ကို ဖယ်ရှား
 
     _allExpenses[key] = dailyExpenses;
@@ -159,12 +163,14 @@ class _BudgetPageState extends State<BudgetPage> {
   }
 
   double _calculateDailyTotal(DateTime day) {
-    return _getDailyExpenses(day)
-        .fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
+    return _getDailyExpenses(
+      day,
+    ).fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     if (_selectedDay == null) {
       return Scaffold(
         body: Column(
@@ -173,12 +179,13 @@ class _BudgetPageState extends State<BudgetPage> {
               padding: const EdgeInsets.fromLTRB(16.0, 40.0, 16.0, 16.0),
               child: Text(
                 DateFormat.yMMMM().format(_focusedDay),
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            Expanded(
-              child: _buildTableCalendar(),
-            ),
+            Expanded(child: _buildTableCalendar()),
             const Padding(
               padding: EdgeInsets.all(24.0),
               child: Text(
@@ -190,19 +197,23 @@ class _BudgetPageState extends State<BudgetPage> {
           ],
         ),
       );
-    } 
-    else {
+    } else {
       final dailyExpenses = _getDailyExpenses(_selectedDay!);
       final monthlyTotal = _calculateMonthlyTotal(_focusedDay);
       return Scaffold(
         body: Column(
           children: [
+            // budget_page.dart ထဲတွင် အစားထိုးရန်
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(
+                vertical: 12.0,
+                horizontal: 16.0,
+              ),
               child: Container(
                 padding: const EdgeInsets.all(12.0),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  // *** ဤနေရာတွင် colorScheme ကို ပြောင်းသုံးပါ ***
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 child: Row(
@@ -210,20 +221,25 @@ class _BudgetPageState extends State<BudgetPage> {
                   children: [
                     Text(
                       'Total for ${DateFormat.yMMMM().format(_focusedDay)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       '${NumberFormat('#,##0').format(monthlyTotal)} MMK',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        // *** ဤနေရာတွင် colorScheme ကို ပြောင်းသုံးပါ ***
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+            
             _buildTableCalendar(),
             const SizedBox(height: 8.0),
             Expanded(
@@ -236,20 +252,29 @@ class _BudgetPageState extends State<BudgetPage> {
                       itemBuilder: (context, index) {
                         final expense = dailyExpenses[index];
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 4.0,
+                          ),
                           child: ListTile(
                             title: Text(expense['name'] as String),
                             subtitle: Text('Category: ${expense['category']}'),
                             trailing: Text(
                               '${NumberFormat('#,##0').format(expense['amount'])} MMK',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             // =======================================================================
                             // *** အဓိက ပြောင်းလဲမှု ***
                             // ListTile ကို နှိပ်လိုက်ရင် edit/delete dialog ကို ခေါ်ပါမည်။
                             // =======================================================================
                             onTap: () {
-                              _showEditDeleteDialog(context, _selectedDay!, index);
+                              _showEditDeleteDialog(
+                                context,
+                                _selectedDay!,
+                                index,
+                              );
                             },
                           ),
                         );
@@ -259,9 +284,18 @@ class _BudgetPageState extends State<BudgetPage> {
           ],
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
+            // async ထည့်ပါ
             if (_selectedDay != null) {
-              _showExpenseInputModal(context, _selectedDay!);
+              // အသစ်สร้างထားတဲ့ modal ကို ခေါ်သုံးပါ
+              await showExpenseInputModal(
+                context,
+                _selectedDay!,
+                _categories,
+                _addExpense,
+              );
+              // modal ပိတ်ပြီးရင် data အသစ်ပြန် load လုပ်ပါ
+              _loadData();
             }
           },
           tooltip: 'Add Expense',
@@ -296,11 +330,16 @@ class _BudgetPageState extends State<BudgetPage> {
         }
       },
       onPageChanged: (focusedDay) {
-        setState(() { _focusedDay = focusedDay; });
+        setState(() {
+          _focusedDay = focusedDay;
+        });
         _loadCategories();
       },
       calendarStyle: const CalendarStyle(outsideDaysVisible: false),
-      headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+      headerStyle: const HeaderStyle(
+        formatButtonVisible: false,
+        titleCentered: true,
+      ),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
           final dailyTotal = _calculateDailyTotal(day);
@@ -316,7 +355,11 @@ class _BudgetPageState extends State<BudgetPage> {
                 ),
                 child: Text(
                   NumberFormat.compact().format(dailyTotal),
-                  style: const TextStyle(color: Colors.white, fontSize: 8.0, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8.0,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             );
@@ -330,112 +373,9 @@ class _BudgetPageState extends State<BudgetPage> {
   // =======================================================================
   // *** အဓိက ပြောင်းလဲမှု ***
   // _showExpenseInputModal ကို edit လုပ်နိုင်ရန် ပြင်ဆင်ထားပါသည်။
-  // index. આપવામાં આવે ત્યારે Edit mode, မဟုတ်ရင် Add mode ဖြစ်ပါသည်။
+  // index. આપવામાં આવેသောအခါ Edit mode, မဟုတ်ရင် Add mode ဖြစ်ပါသည်။
   // =======================================================================
-void _showExpenseInputModal(BuildContext context, DateTime day, {int? editIndex}) {
-    final bool isEditing = editIndex != null;
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController amountController = TextEditingController();
-    String? selectedCategory;
 
-    // *** အဓိက ပြင်ဆင်မှု ***
-    // Dropdown menu အတွက် category list ကို copy တစ်ခု အရင်လုပ်ထားပါမည်။
-    final List<String> dropdownCategories = List.from(_categories);
-
-    // Edit mode ဖြစ်ပါက data များကို ကြိုဖြည့်ထားပါ
-    if (isEditing) {
-      final expense = _getDailyExpenses(day)[editIndex!];
-      nameController.text = expense['name'];
-      amountController.text = expense['amount'].toString();
-      
-      final String existingCategory = expense['category'];
-      selectedCategory = existingCategory;
-
-      // အကယ်၍ ပြင်မယ့် expense ရဲ့ category အဟောင်းက လက်ရှိ list ထဲမှာ မရှိတော့ဘူးဆိုရင်...
-      if (!dropdownCategories.contains(existingCategory)) {
-        // Dropdown menu မှာ ပြသဖို့အတွက် ယာယီထည့်ပေးလိုက်ပါ
-        dropdownCategories.add(existingCategory);
-      }
-    } else {
-      selectedCategory = _categories.isNotEmpty ? _categories.first : null;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder( // Use StatefulBuilder to update selectedCategory within the modal
-          builder: (BuildContext context, StateSetter modalSetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom, left: 16.0, right: 16.0, top: 16.0,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      isEditing ? 'Edit Expense' : 'Add Expense for ${DateFormat.yMMMd().format(day)}',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Expense Name', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: amountController,
-                      decoration: const InputDecoration(labelText: 'Amount (MMK)', border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: selectedCategory,
-                      decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
-                      // *** အဓိက ပြင်ဆင်မှု ***
-                      // ပြင်ဆင်ထားသော dropdownCategories list ကို အသုံးပြုပါမည်
-                      items: dropdownCategories.map((String category) {
-                        return DropdownMenuItem<String>(value: category, child: Text(category));
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        modalSetState(() { // Update the state within the modal
-                           selectedCategory = newValue;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (nameController.text.isEmpty || amountController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields!')));
-                          return;
-                        }
-                        
-                        final name = nameController.text;
-                        final amount = double.tryParse(amountController.text) ?? 0.0;
-                        final category = selectedCategory ?? 'Others';
-                        
-                        if (isEditing) {
-                          _updateExpense(day, editIndex, name, amount, category);
-                        } else {
-                          _addExpense(day, name, amount, category);
-                        }
-                        Navigator.pop(context);
-                      },
-                      child: Text(isEditing ? 'Save Changes' : 'Save Expense'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-  
   // =======================================================================
   // *** အသစ် ထပ်တိုးထားသော Function ***
   // Edit နှင့် Delete ခလုတ်များပါသော Dialog ကို ပြသရန်
@@ -458,14 +398,19 @@ void _showExpenseInputModal(BuildContext context, DateTime day, {int? editIndex}
                   builder: (BuildContext c) {
                     return AlertDialog(
                       title: const Text('Confirm Delete'),
-                      content: const Text('Are you sure you want to delete this expense?'),
+                      content: const Text(
+                        'Are you sure you want to delete this expense?',
+                      ),
                       actions: [
                         TextButton(
                           child: const Text('Cancel'),
                           onPressed: () => Navigator.of(c).pop(),
                         ),
                         TextButton(
-                          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(color: Colors.red),
+                          ),
                           onPressed: () {
                             Navigator.of(c).pop(); // Close confirmation dialog
                             _deleteExpense(date, index);
@@ -473,15 +418,37 @@ void _showExpenseInputModal(BuildContext context, DateTime day, {int? editIndex}
                         ),
                       ],
                     );
-                  }
+                  },
                 );
               },
             ),
             TextButton(
               child: const Text('Edit'),
-              onPressed: () {
+              onPressed: () async {
+                // async ထည့်ပါ
                 Navigator.of(context).pop(); // Close the action dialog
-                _showExpenseInputModal(context, date, editIndex: index);
+
+                // ပြင်မယ့် expense data ကို ကြိုယူထားပါ
+                final expenseToEdit = _getDailyExpenses(date)[index];
+
+                // ပြင်ဆင်ထားတဲ့ modal အသစ်ကို ခေါ်သုံးပါ
+                await showExpenseInputModal(
+                  context,
+                  date,
+                  _categories,
+                  (savedDate, newName, newAmount, newCategory) {
+                    // modal ကနေ save နှိပ်လိုက်ရင် _updateExpense ကို ခေါ်ပါမယ်
+                    _updateExpense(
+                      date,
+                      index,
+                      newName,
+                      newAmount,
+                      newCategory,
+                    );
+                  },
+                  initialExpense:
+                      expenseToEdit, // ပြင်မယ့် data ကို ထည့်ပေးလိုက်ပါ
+                );
               },
             ),
           ],
