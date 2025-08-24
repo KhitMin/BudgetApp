@@ -9,7 +9,14 @@ import 'dart:math';
 import 'widgets/expense_input_modal.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  // *** အဓိက ပြင်ဆင်မှု (၁) ***
+  // MainScreen ကနေ tab ပြောင်းလဲပေးမယ့် function ကို လက်ခံဖို့ variable ကြေညာပါ
+  final Function(int) onNavigateToTab;
+
+  const HomePage({
+    super.key,
+    required this.onNavigateToTab, //
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -32,9 +39,12 @@ class _HomePageState extends State<HomePage> {
 
   // SharedPreferences ကနေ data အားလုံးကို load လုပ်ပြီး တွက်ချက်မယ့် মূল function
   Future<void> _loadDashboardData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // initState ပြီးမှ setState ခေါ်တာ သေချာအောင်လုပ်ပါ
+    if(mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final currentMonth = DateTime.now();
@@ -108,12 +118,14 @@ class _HomePageState extends State<HomePage> {
     _topCategories = Map.fromEntries(sortedCategories.take(4));
 
     // 5. Update state
-    setState(() {
-      _totalIncome = incomeThisMonth;
-      _totalSpent = spentThisMonth;
-      _categories = categoriesThisMonth.toSet().toList();
-      _isLoading = false;
-    });
+    if(mounted) {
+      setState(() {
+        _totalIncome = incomeThisMonth;
+        _totalSpent = spentThisMonth;
+        _categories = categoriesThisMonth.toSet().toList();
+        _isLoading = false;
+      });
+    }
   }
 
   // Expense အသစ်ထည့်ပြီး data သိမ်းဆည်းရန် function
@@ -164,10 +176,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 1. Monthly Summary Card
-// 1. Monthly Summary Card
   Widget _buildMonthlySummaryCard() {
-    // *** ဤနေရာတွင် progress variable ကို ကြေညာရန် ကျန်နေခဲ့ခြင်းဖြစ်နိုင်သည် ***
     final remaining = _totalIncome - _totalSpent;
     final progress = _totalIncome > 0 ? (_totalSpent / _totalIncome).clamp(0, 1) : 0.0;
 
@@ -205,7 +214,7 @@ class _HomePageState extends State<HomePage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: progress.toDouble(), // အခု ဒီနေရာမှာ error မရှိတော့ပါ
+                value: progress.toDouble(),
                 minHeight: 10,
                 backgroundColor: Colors.grey[300],
                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
@@ -230,7 +239,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
   
-  // 2. Quick Actions Card
   Widget _buildQuickActionsCard() {
     return Row(
       children: [
@@ -253,11 +261,10 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.bar_chart),
             label: const Text('View Reports'),
             onPressed: () {
-              // Reporting tab ကိုသွားရန် (main.dart မှာ handle လုပ်ရန်လို)
-              // This requires a way to change tabs, e.g., using a Provider or callback
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Reporting feature coming soon!')),
-              );
+              // *** အဓိက ပြင်ဆင်မှု (၂) ***
+              // SnackBar ပြမယ့်အစား Parent (MainScreen) က ပေးလိုက်တဲ့ function ကိုခေါ်ပါ
+              // Reporting tab ရဲ့ index က 3 ဖြစ်ပါတယ် (Home=0, Budget=1, Planning=2, Reporting=3)
+              widget.onNavigateToTab(3);
             },
              style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -269,7 +276,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 3. Recent Transactions Card
   Widget _buildRecentTransactionsCard() {
     return Card(
       elevation: 2,
@@ -301,7 +307,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 4. Top Spending Categories Card
   Widget _buildTopCategoriesCard() {
     final List<Color> pieColors = [
       Colors.blue, Colors.red, Colors.green, Colors.orange, Colors.purple
@@ -369,13 +374,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 5. Financial Tip Card
   Widget _buildFinancialTipCard() {
     return Card(
       color: Colors.blue.shade50,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: const Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
             Icon(Icons.lightbulb_outline, color: Colors.blue, size: 30),

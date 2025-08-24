@@ -50,19 +50,18 @@ class AppRoot extends StatelessWidget {
     return MaterialApp(
       title: 'My Budget App',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorSchemeSeed: Colors.blue, // primarySwatch အစား colorSchemeSeed ကိုသုံးတာက ပိုကောင်းပါတယ်
         brightness: Brightness.light,
       ),
       darkTheme: ThemeData(
+        colorSchemeSeed: Colors.blue,
         brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
       ),
       themeMode: themeProvider.themeMode,
       locale: localeProvider.locale,
       supportedLocales: const [Locale('en'), Locale('my')],
-      localizationsDelegates: [
-        const AppLocalizationsDelegate(),
-        // add default material localizations so widgets like date pickers work
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -81,16 +80,36 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
+// =======================================================================
+// *** ဤနေရာမှ စ၍ ပြင်ဆင်ထားပါသည် ***
+// =======================================================================
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomePage(),
-    BudgetPage(),
-    PlanningPage(),
-    ReportingPage(),  // Index 3
-    SettingPage(),    // Index 4
-  ];
+  // Tab ကို ပြောင်းလဲပေးမယ့် function
+  void _changeTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+  
+  // late final အဖြစ်ကြေညာထားသော variable
+  late final List<Widget> _widgetOptions;
+
+  // *** အဓိကအရေးကြီးဆုံးအပိုင်း ***
+  // initState() function က build() မတိုင်ခင်မှာ အရင် အလုပ်လုပ်ပါတယ်
+  // ဒီနေရာမှာ _widgetOptions ကို တန်ဖိုးထည့်သွင်းပေးရပါမယ်
+  @override
+  void initState() {
+    super.initState();
+    _widgetOptions = <Widget>[
+      HomePage(onNavigateToTab: _changeTab),
+      const BudgetPage(),
+      const PlanningPage(),
+      const ReportingPage(),
+      const SettingPage(),
+    ];
+  }
 
   // tab ကိုနှိပ်လိုက်ရင် page ပြောင်းပေးမယ့် function
   void _onItemTapped(int index) {
@@ -102,16 +121,13 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar ကို page တစ်ခုချင်းစီမှာ သီးသန့်ထားလိုပါက ဒီ AppBar ကို ဖယ်ရှားနိုင်ပါသည်
       appBar: AppBar(
         title: const Text('My Budget Planner'),
         elevation: 1,
       ),
-      // ရွေးထားတဲ့ index အလိုက် သက်ဆိုင်ရာ page ကို ပြသပါမယ်
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
-      // Footer Navbar
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -136,14 +152,11 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        // ရွေးထားတဲ့ tab ကို အရောင်ပေါ်လွင်အောင်လုပ်ရန်
-        selectedItemColor: Colors.blue[800], 
-        // မရွေးထားတဲ့ tab တွေကို အရောင်မှိန်ရန်
+        selectedItemColor: Theme.of(context).colorScheme.primary, 
         unselectedItemColor: Colors.grey, 
-        // label တွေကို အမြဲပြသရန်
         showUnselectedLabels: true, 
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // tab 5 ခုအတွက် fixed type သုံးပါ
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
