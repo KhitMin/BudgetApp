@@ -8,7 +8,6 @@ import 'pages/home_page.dart';
 import 'pages/budget_page.dart';
 import 'pages/planning_page.dart';
 import 'pages/reporting_page.dart';
-import 'pages/setting_page.dart';
 
 // providers
 import 'providers/theme_provider.dart';
@@ -105,7 +104,7 @@ class _MainScreenState extends State<MainScreen> {
       const BudgetPage(),
       const PlanningPage(),
       const ReportingPage(),
-      const SettingPage(),
+      const ReportingPage(),
     ];
   }
 
@@ -118,7 +117,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Budget Planner'),
