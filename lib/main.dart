@@ -8,6 +8,7 @@ import 'pages/home_page.dart';
 import 'pages/budget_page.dart';
 import 'pages/planning_page.dart';
 import 'pages/reporting_page.dart';
+import 'pages/records_page.dart';
 
 // providers
 import 'providers/theme_provider.dart';
@@ -104,7 +105,7 @@ class _MainScreenState extends State<MainScreen> {
       const BudgetPage(),
       const PlanningPage(),
       const ReportingPage(),
-      const ReportingPage(),
+      const RecordsPage(),
     ];
   }
 

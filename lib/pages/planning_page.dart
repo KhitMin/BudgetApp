@@ -8,6 +8,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/currency_provider.dart';
 import '../l10n/app_localizations.dart';
 
+// Main Page Widget
 class PlanningPage extends StatefulWidget {
   const PlanningPage({super.key});
 
@@ -16,571 +17,930 @@ class PlanningPage extends StatefulWidget {
 }
 
 class _PlanningPageState extends State<PlanningPage> {
-  Map<String, List<Map<String, dynamic>>> _allIncomes = {};
-  Map<String, List<Map<String, dynamic>>> _allPlans = {};
+  Map<String, List<Map<String, dynamic>>> _allPlannedIncomes = {};
+  Map<String, List<Map<String, dynamic>>> _allPlannedExpenses = {};
   double _totalIncome = 0.0;
-  double _totalPlannedBudget = 0.0;
-  double _remainingBalance = 0.0;
-  DateTime _currentMonth = DateTime.now();
-  late bool _isEditable;
-
-  final TextEditingController _incomeNameController = TextEditingController();
-  final TextEditingController _incomeAmountController = TextEditingController();
-  final TextEditingController _planNameController = TextEditingController();
-  final TextEditingController _planValueController = TextEditingController();
+  double _totalPlannedExpenses = 0.0;
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  int _touchedIndex = -1;
 
   @override
   void initState() {
     super.initState();
     _loadAllData();
-    _checkEditableStatus();
   }
 
-  @override
-  void dispose() {
-    _incomeNameController.dispose();
-    _incomeAmountController.dispose();
-    _planNameController.dispose();
-    _planValueController.dispose();
-    super.dispose();
-  }
-
-  void _checkEditableStatus() {
-    final now = DateTime.now();
-    final threeMonthsAgo = DateTime(now.year, now.month - 2, 1);
-    setState(() {
-      _isEditable = !_currentMonth.isBefore(threeMonthsAgo);
-    });
-  }
+  // --- DATA MANAGEMENT ---
 
   Future<void> _loadAllData() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    final incomesString = prefs.getString('all_incomes');
+    final incomesString = prefs.getString('planned_incomes');
     if (incomesString != null) {
-      _allIncomes = Map<String, List<Map<String, dynamic>>>.from(
-        (json.decode(incomesString) as Map<String, dynamic>).map(
-          (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
-        )
-      );
+      _allPlannedIncomes = Map<String, List<Map<String, dynamic>>>.from(
+          (json.decode(incomesString) as Map<String, dynamic>).map(
+        (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
+      ));
     }
-
-    final plansString = prefs.getString('all_plans');
-    if (plansString != null) {
-      _allPlans = Map<String, List<Map<String, dynamic>>>.from(
-        (json.decode(plansString) as Map<String, dynamic>).map(
-          (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
-        )
-      );
+    final expensesString = prefs.getString('planned_expenses');
+    if (expensesString != null) {
+      _allPlannedExpenses = Map<String, List<Map<String, dynamic>>>.from(
+          (json.decode(expensesString) as Map<String, dynamic>).map(
+        (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
+      ));
     }
-    _calculateTotalIncomeAndPlans();
-    if(mounted) setState(() {});
+    _calculateTotalsForCurrentMonth();
+    if (mounted) setState(() {});
   }
 
   Future<void> _saveAllData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('all_incomes', json.encode(_allIncomes));
-    await prefs.setString('all_plans', json.encode(_allPlans));
+    await prefs.setString('planned_incomes', json.encode(_allPlannedIncomes));
+    await prefs.setString('planned_expenses', json.encode(_allPlannedExpenses));
+    _calculateTotalsForCurrentMonth();
   }
 
-  void _calculateTotalIncomeAndPlans() {
-    double totalIncome = 0.0;
-    final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
+  // --- CALCULATIONS & ACTIONS ---
 
-    _allIncomes.forEach((key, monthIncomes) {
-      for (var income in monthIncomes) {
-        if (income['isRecurring'] == true) {
-          totalIncome += (income['amount'] as num).toDouble();
-        }
+  void _calculateTotalsForCurrentMonth() {
+    final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
+    final currentIncomes = _allPlannedIncomes[currentMonthKey] ?? [];
+    _totalIncome =
+        currentIncomes.fold(0.0, (sum, item) => sum + (item['amount'] as num));
+    final currentExpenses = _allPlannedExpenses[currentMonthKey] ?? [];
+    _totalPlannedExpenses =
+        currentExpenses.fold(0.0, (sum, item) => sum + (item['amount'] as num));
+    if (mounted) setState(() {});
+  }
+
+  void _onItemSave(bool isExpense, String name, double amount, Category category,
+      DateTime date, bool isRecurring) {
+    final newItem = {
+      'isExpense': isExpense,
+      'name': name,
+      'amount': amount,
+      'category': category.toJson(),
+      'date': date.toIso8601String(),
+      'isRecurring': isRecurring,
+    };
+    final monthKey = DateFormat('yyyy-MM').format(date);
+    setState(() {
+      if (isExpense) {
+        _allPlannedExpenses.putIfAbsent(monthKey, () => []).add(newItem);
+      } else {
+        _allPlannedIncomes.putIfAbsent(monthKey, () => []).add(newItem);
       }
     });
-    final currentMonthIncomes = _allIncomes[currentMonthKey] ?? [];
-     for (var income in currentMonthIncomes) {
-      if (income['isRecurring'] != true) {
-        totalIncome += (income['amount'] as num).toDouble();
+    _saveAllData();
+  }
+
+  void _onItemUpdate(
+      Map<String, dynamic> oldItem,
+      bool wasExpense,
+      bool isExpense,
+      String name,
+      double amount,
+      Category category,
+      DateTime date,
+      bool isRecurring) {
+    final updatedItem = {
+      'isExpense': isExpense,
+      'name': name,
+      'amount': amount,
+      'category': category.toJson(),
+      'date': date.toIso8601String(),
+      'isRecurring': isRecurring,
+    };
+    final oldMonthKey =
+        DateFormat('yyyy-MM').format(DateTime.parse(oldItem['date']));
+    final newMonthKey = DateFormat('yyyy-MM').format(date);
+    setState(() {
+      if (wasExpense) {
+        _allPlannedExpenses[oldMonthKey]?.removeWhere((item) =>
+            item['date'] == oldItem['date'] && item['name'] == oldItem['name']);
+      } else {
+        _allPlannedIncomes[oldMonthKey]?.removeWhere((item) =>
+            item['date'] == oldItem['date'] && item['name'] == oldItem['name']);
       }
-    }
-
-    double totalPlanned = 0.0;
-    final currentMonthPlans = _allPlans[currentMonthKey] ?? [];
-    for (var plan in currentMonthPlans) {
-      totalPlanned += (plan['amount'] as num).toDouble();
-    }
-
-    if(mounted) {
-       setState(() {
-        _totalIncome = totalIncome;
-        _totalPlannedBudget = totalPlanned;
-        _remainingBalance = _totalIncome - _totalPlannedBudget;
-      });
-    }
+      if (isExpense) {
+        _allPlannedExpenses.putIfAbsent(newMonthKey, () => []).add(updatedItem);
+      } else {
+        _allPlannedIncomes.putIfAbsent(newMonthKey, () => []).add(updatedItem);
+      }
+    });
+    _saveAllData();
   }
 
-  void _showIncomeInputModal({int? index}) {
-    final loc = AppLocalizations.of(context);
-    final currencySymbol = Provider.of<CurrencyProvider>(context, listen: false).currencySymbol;
-    bool isEditing = index != null;
-    bool modalIsRecurring = false;
-    
-    if (isEditing) {
-      final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
-      final income = _allIncomes[currentMonthKey]![index];
-      _incomeNameController.text = income['name'] as String;
-      _incomeAmountController.text = income['amount'].toString();
-      modalIsRecurring = income['isRecurring'] ?? false;
-    } else {
-      _incomeNameController.clear();
-      _incomeAmountController.clear();
-      modalIsRecurring = false;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter modalStateSetter) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16.0, right: 16.0, top: 16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      isEditing ? loc.t('planningEditIncomeTitle') : loc.t('planningAddIncomeTitle'),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _incomeNameController,
-                      decoration: InputDecoration(labelText: loc.t('planningIncomeNameLabel'), border: const OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _incomeAmountController,
-                      decoration: InputDecoration(labelText: loc.t('planningAmountLabel', args: {'currency': currencySymbol}), border: const OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 10),
-                    CheckboxListTile(
-                      title: Text(loc.t('planningIsRecurringLabel')),
-                      value: modalIsRecurring,
-                      onChanged: (bool? newValue) {
-                        modalStateSetter(() { modalIsRecurring = newValue ?? false; });
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_incomeNameController.text.isEmpty || _incomeAmountController.text.isEmpty) return;
-                        final String monthKey = DateFormat('yyyy-MM').format(_currentMonth);
-                        final incomeData = {
-                          'name': _incomeNameController.text,
-                          'amount': double.tryParse(_incomeAmountController.text) ?? 0.0,
-                          'isRecurring': modalIsRecurring,
-                        };
-                        setState(() {
-                          if (isEditing) {
-                            _allIncomes[monthKey]![index] = incomeData;
-                          } else {
-                            _allIncomes.putIfAbsent(monthKey, () => []).add(incomeData);
-                          }
-                          _calculateTotalIncomeAndPlans();
-                        });
-                        _saveAllData();
-                        Navigator.pop(context);
-                      },
-                      child: Text(isEditing ? loc.t('edit') : loc.t('save')),
-                    ),
-                    if (isEditing)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final String monthKey = DateFormat('yyyy-MM').format(_currentMonth);
-                            setState(() {
-                              _allIncomes[monthKey]!.removeAt(index);
-                              _calculateTotalIncomeAndPlans();
-                            });
-                            _saveAllData();
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: Text(loc.t('planningDeleteIncomeBtn')),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _onItemDelete(Map<String, dynamic> item, bool isExpense) {
+    final monthKey = DateFormat('yyyy-MM').format(DateTime.parse(item['date']));
+    setState(() {
+      if (isExpense) {
+        _allPlannedExpenses[monthKey]?.remove(item);
+      } else {
+        _allPlannedIncomes[monthKey]?.remove(item);
+      }
+    });
+    _saveAllData();
   }
 
-  void _showPlanInputModal({int? index}) {
-    final loc = AppLocalizations.of(context);
-    final currencySymbol = Provider.of<CurrencyProvider>(context, listen: false).currencySymbol;
-    bool isEditing = index != null;
-    String planType = 'fixed';
-    
-    if (isEditing) {
-      final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
-      final plan = _allPlans[currentMonthKey]![index];
-      _planNameController.text = plan['name'] as String;
-      planType = plan['type'] ?? 'fixed';
-      _planValueController.text = plan['value'].toString();
-    } else {
-      _planNameController.clear();
-      _planValueController.clear();
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter modalStateSetter) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16.0, right: 16.0, top: 16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      isEditing ? loc.t('planningEditPlanTitle') : loc.t('planningAddPlanTitle'),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ChoiceChip(
-                          label: Text(loc.t('planningAmountChip')),
-                          selected: planType == 'fixed',
-                          onSelected: (bool selected) {
-                            if (selected) modalStateSetter(() { planType = 'fixed'; });
-                          },
-                        ),
-                        const SizedBox(width: 10),
-                        ChoiceChip(
-                          label: Text(loc.t('planningPercentageChip')),
-                          selected: planType == 'percentage',
-                          onSelected: (bool selected) {
-                            if (selected) modalStateSetter(() { planType = 'percentage'; });
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _planNameController,
-                      decoration: InputDecoration(labelText: loc.t('planningCategoryNameLabel'), border: const OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _planValueController,
-                      decoration: InputDecoration(
-                        labelText: planType == 'fixed' ? loc.t('planningValueLabel') + ' ($currencySymbol)' : loc.t('planningPercentageLabel'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_planNameController.text.isEmpty || _planValueController.text.isEmpty) return;
-                        final String monthKey = DateFormat('yyyy-MM').format(_currentMonth);
-                        final double value = double.tryParse(_planValueController.text) ?? 0.0;
-                        double amount = (planType == 'percentage') ? (_totalIncome * value) / 100 : value;
-                        final planData = {'name': _planNameController.text, 'amount': amount, 'type': planType, 'value': value};
-                        setState(() {
-                          if (isEditing) {
-                            _allPlans[monthKey]![index] = planData;
-                          } else {
-                            _allPlans.putIfAbsent(monthKey, () => []).add(planData);
-                          }
-                          _calculateTotalIncomeAndPlans();
-                        });
-                        _saveAllData();
-                        Navigator.pop(context);
-                      },
-                      child: Text(isEditing ? loc.t('edit') : loc.t('save')),
-                    ),
-                     if (isEditing)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final String monthKey = DateFormat('yyyy-MM').format(_currentMonth);
-                            setState(() {
-                              _allPlans[monthKey]!.removeAt(index);
-                              _calculateTotalIncomeAndPlans();
-                            });
-                            _saveAllData();
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: Text(loc.t('planningDeletePlanBtn')),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _showPlanningModal({Map<String, dynamic>? item}) {
+    bool isEditing = item != null;
+    bool wasExpense = isEditing ? item!['isExpense'] : false;
+    showPlanningInputModal(context,
+        isEditing ? DateTime.parse(item!['date']) : DateTime.now(),
+        onSave: (isExpense, name, amount, category, date, isRecurring) {
+      if (isEditing) {
+        _onItemUpdate(
+            item!, wasExpense, isExpense, name, amount, category, date, isRecurring);
+      } else {
+        _onItemSave(isExpense, name, amount, category, date, isRecurring);
+      }
+    }, onDelete: () {
+      if (isEditing) {
+        _onItemDelete(item!, wasExpense);
+      }
+    }, initialItem: item);
   }
 
-  List<PieChartSectionData> _getPieChartSections() {
-    final allItems = _getAllChartItems();
-    if (_totalIncome <= 0 || allItems.isEmpty) {
+  // --- PIE CHART LOGIC ---
+  List<PieChartSectionData> _getPieChartSections(
+      Map<String, double> categoryTotals, List<Color> colors) {
+    if (categoryTotals.isEmpty) {
       return [
-        PieChartSectionData(color: Colors.grey, value: 100, title: '0%', radius: 80, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+        PieChartSectionData(
+            color: Colors.grey.shade300, value: 1, title: '', radius: 50)
       ];
     }
-    return allItems.map((item) {
-      final double percentage = (_totalIncome > 0) ? ((item['value'] as num) / _totalIncome) * 100 : 0;
+    final totalValue =
+        categoryTotals.values.fold(0.0, (sum, item) => sum + item);
+    final dataEntries = categoryTotals.entries.toList();
+    return List.generate(dataEntries.length, (index) {
+      final isTouched = index == _touchedIndex;
+      final fontSize = isTouched ? 16.0 : 12.0;
+      final radius = isTouched ? 60.0 : 50.0;
+      final color = colors[index % colors.length];
+      final entry = dataEntries[index];
+      final percentage =
+          totalValue > 0 ? (entry.value / totalValue) * 100 : 0;
       return PieChartSectionData(
-        color: item['color'] as Color,
-        value: (item['value'] as num).toDouble(),
-        title: '${percentage.toStringAsFixed(1)}%',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-      );
-    }).toList();
-  }
-  
-  List<Map<String, dynamic>> _getAllChartItems() {
-    final loc = AppLocalizations.of(context);
-    final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
-    final currentMonthPlans = _allPlans[currentMonthKey] ?? [];
-    const List<Color> colors = [
-      Colors.blue, Colors.red, Colors.green, Colors.yellow, Colors.purple, Colors.orange, Colors.cyan, Colors.pink, Colors.teal, Colors.indigo,
-    ];
-    List<Map<String, dynamic>> items = [];
-    int colorIndex = 0;
-    for (var plan in currentMonthPlans) {
-      items.add({'name': plan['name'], 'value': plan['amount'], 'color': colors[colorIndex++ % colors.length]});
-    }
-    if (_remainingBalance > 0) {
-      items.add({'name': loc.t('planningRemainingBalance'), 'value': _remainingBalance, 'color': Colors.teal});
-    } else if (_remainingBalance < 0) {
-      items.add({'name': loc.t('planningOverspending'), 'value': _remainingBalance.abs(), 'color': Colors.red});
-    }
-    return items;
+          color: color,
+          value: entry.value,
+          title: isTouched ? '${percentage.toStringAsFixed(0)}%' : '',
+          radius: radius,
+          titleStyle: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.white));
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = currencyProvider.currencySymbol;
+    final currencySymbol =
+        Provider.of<CurrencyProvider>(context).currencySymbol;
     final currentMonthKey = DateFormat('yyyy-MM').format(_currentMonth);
-    final currentMonthIncomes = _allIncomes[currentMonthKey] ?? [];
-    final currentMonthPlans = _allPlans[currentMonthKey] ?? [];
-    final allChartItems = _getAllChartItems();
-    
+    final incomesForCurrentMonth = _allPlannedIncomes[currentMonthKey] ?? [];
+    final expensesForCurrentMonth = _allPlannedExpenses[currentMonthKey] ?? [];
+    final remainingBalance = _totalIncome - _totalPlannedExpenses;
+
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
                     icon: const Icon(Icons.arrow_back_ios),
-                    onPressed: () {
-                      setState(() {
-                        _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-                        _calculateTotalIncomeAndPlans();
-                        _checkEditableStatus();
-                      });
-                    },
-                  ),
-                  Text(
-                    DateFormat.yMMMM(loc.locale.languageCode).format(_currentMonth),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
+                    onPressed: () => setState(() {
+                          _currentMonth = DateTime(
+                              _currentMonth.year, _currentMonth.month - 1);
+                          _calculateTotalsForCurrentMonth();
+                        })),
+                Text(DateFormat.yMMMM(loc.locale.languageCode).format(_currentMonth),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                IconButton(
                     icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: () {
-                      setState(() {
-                        _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-                        _calculateTotalIncomeAndPlans();
-                        _checkEditableStatus();
-                      });
-                    },
-                  ),
-                ],
-              ),
+                    onPressed: () => setState(() {
+                          _currentMonth = DateTime(
+                              _currentMonth.year, _currentMonth.month + 1);
+                          _calculateTotalsForCurrentMonth();
+                        }))
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 children: [
-                  Text(loc.t('planningTotalIncome'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(
-                    NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(_totalIncome),
-                    style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(loc.t('planningPlannedBudget'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(
-                    NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(_totalPlannedBudget),
-                    style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue),
-                  ),
-                  const SizedBox(height: 20),
-                  Text( _remainingBalance >= 0 ? loc.t('planningRemainingBalance') : loc.t('planningOverspending'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(
-                    NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(_remainingBalance),
-                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: _remainingBalance >= 0 ? Colors.teal : Colors.red),
-                  ),
-                ],
-              ),
-            ),
-            if (_totalIncome > 0)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: SizedBox(height: 250, child: PieChart(PieChartData(sections: _getPieChartSections(), centerSpaceRadius: 40, sectionsSpace: 2))),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 16.0, right: 16.0),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: allChartItems.map((item) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                            children: [
-                              Container(width: 16, height: 16, color: item['color'] as Color),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(item['name'] as String, style: const TextStyle(fontSize: 14), softWrap: true)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                      children: [
+                        _buildSummaryRow(loc.t('planningTotalIncome'),
+                            _totalIncome, Colors.green, currencySymbol),
+                        const SizedBox(height: 8),
+                        _buildSummaryRow(
+                            loc.t('planningPlannedBudget'),
+                            _totalPlannedExpenses,
+                            Colors.red,
+                            currencySymbol),
+                        const Divider(height: 24),
+                        _buildSummaryRow(
+                            remainingBalance >= 0
+                                ? loc.t('planningRemainingBalance')
+                                : loc.t('planningOverspending'),
+                            remainingBalance,
+                            remainingBalance >= 0 ? Colors.teal : Colors.orange,
+                            currencySymbol,
+                            isTotal: true)
+                      ],
                     ),
                   ),
-                ),
-              ],
-            )
-            else 
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text(loc.t('planningNoIncomePrompt'), style: const TextStyle(color: Colors.red, fontSize: 16)),
-              ),
-            
-            const Divider(),
-            
-            ExpansionTile(
-              title: Text(loc.t('planningIncomes')),
-              initiallyExpanded: true,
-              children: [
-                if (currentMonthIncomes.isEmpty)
-                  Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text(loc.t('planningAddIncomePrompt'))))
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: currentMonthIncomes.length,
-                    itemBuilder: (context, index) {
-                      final income = currentMonthIncomes[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                        child: ListTile(
-                          title: Text(income['name'] as String),
-                          subtitle: Text(income['isRecurring'] == true ? loc.t('planningRecurringIncome') : loc.t('planningOneTimeIncome')),
-                          trailing: Text(
-                            NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(income['amount']),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          onTap: _isEditable ? () => _showIncomeInputModal(index: index) : null,
-                        ),
-                      );
-                    },
+                  const Divider(height: 24),
+                  if (expensesForCurrentMonth.isNotEmpty)
+                    _buildPieChartCard(context, expensesForCurrentMonth),
+                  ExpansionTile(
+                    title: Text(loc.t('planningIncomes')),
+                    initiallyExpanded: true,
+                    children: [
+                      if (incomesForCurrentMonth.isEmpty)
+                        Center(
+                            child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(loc.t('planningAddIncomePrompt'))))
+                      else
+                        ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: incomesForCurrentMonth.length,
+                            itemBuilder: (context, index) {
+                              final item = incomesForCurrentMonth[index];
+                              return _buildItemTile(item, false, currencySymbol);
+                            })
+                    ],
                   ),
-              ],
-            ),
-            
-            const Divider(),
-            
-            ExpansionTile(
-              title: Text(loc.t('planningPlannedExpenses')),
-              initiallyExpanded: true,
-              children: [
-                if (currentMonthPlans.isEmpty)
-                  Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text(loc.t('planningAddPlanPrompt'))))
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: currentMonthPlans.length,
-                    itemBuilder: (context, index) {
-                      final plan = currentMonthPlans[index];
-                      final amountDisplay = NumberFormat.currency(symbol: '$currencySymbol ', decimalDigits: 0).format(plan['amount']);
-                      final String displayValue = plan['type'] == 'percentage' ? '${plan['value']}% ($amountDisplay)' : amountDisplay;
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                        child: ListTile(
-                          title: Text(plan['name'] as String),
-                          trailing: Text(displayValue, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          onTap: _isEditable ? () => _showPlanInputModal(index: index) : null,
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-            
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isEditable ? _showIncomeInputModal : null,
-                      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                      child: Text(loc.t('planningAddIncomeBtn')),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isEditable ? _showPlanInputModal : null,
-                      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                      child: Text(loc.t('planningPlanExpenseBtn')),
-                    ),
-                  ),
+                  ExpansionTile(
+                    title: Text(loc.t('planningPlannedExpenses')),
+                    initiallyExpanded: true,
+                    children: [
+                      if (expensesForCurrentMonth.isEmpty)
+                        Center(
+                            child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(loc.t('planningAddPlanPrompt'))))
+                      else
+                        ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: expensesForCurrentMonth.length,
+                            itemBuilder: (context, index) {
+                              final item = expensesForCurrentMonth[index];
+                              return _buildItemTile(item, true, currencySymbol);
+                            })
+                    ],
+                  )
                 ],
               ),
             ),
-            if (!_isEditable)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                child: Text(
-                  loc.t('planningEditDisabledTooltip'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 14),
-                ),
-              ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: Text(loc.t('planningStart')),
+              onPressed: _showPlanningModal,
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary),
+            ),
+          )
+        ],
       ),
     );
+  }
+
+  Widget _buildPieChartCard(
+      BuildContext context, List<Map<String, dynamic>> expenses) {
+    final loc = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final Map<String, double> categoryTotals = {};
+    for (var expense in expenses) {
+      final categoryData = expense['category'];
+      // Handle both old (String) and new (Map) data formats
+      final categoryName = categoryData is Map
+          ? (categoryData)['name']
+          : categoryData.toString();
+      final amount = expense['amount'] as double;
+      categoryTotals[categoryName] =
+          (categoryTotals[categoryName] ?? 0) + amount;
+    }
+    const List<Color> pieColors = [
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.amber,
+      Colors.indigo,
+      Colors.brown
+    ];
+    return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+                color: theme.colorScheme.outline.withOpacity(0.2), width: 1)),
+        child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(loc.t('expensePlanning'),
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                      height: 150,
+                      child: PieChart(PieChartData(
+                          pieTouchData: PieTouchData(touchCallback:
+                              (FlTouchEvent event, pieTouchResponse) {
+                            setState(() {
+                              if (!event.isInterestedForInteractions ||
+                                  pieTouchResponse == null ||
+                                  pieTouchResponse.touchedSection == null) {
+                                _touchedIndex = -1;
+                                return;
+                              }
+                              _touchedIndex = pieTouchResponse
+                                  .touchedSection!.touchedSectionIndex;
+                            });
+                          }),
+                          sections:
+                              _getPieChartSections(categoryTotals, pieColors),
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 40))),
+                  const SizedBox(height: 24),
+                  _buildLegend(categoryTotals, pieColors)
+                ])));
+  }
+
+  Widget _buildLegend(Map<String, double> categoryTotals, List<Color> colors) {
+    final sortedEntries = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: List.generate(sortedEntries.length, (index) {
+          final entry = sortedEntries[index];
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+                width: 12,
+                height: 12,
+                color: colors[index % colors.length]),
+            const SizedBox(width: 6),
+            Text(entry.key)
+          ]);
+        }));
+  }
+
+  Widget _buildSummaryRow(String title, double amount, Color color,
+      String currencySymbol, {bool isTotal = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title,
+            style: TextStyle(
+                fontSize: isTotal ? 18 : 16,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
+        Text(NumberFormat.currency(symbol: currencySymbol).format(amount),
+            style: TextStyle(
+                fontSize: isTotal ? 18 : 16,
+                fontWeight: FontWeight.bold,
+                color: color))
+      ],
+    );
+  }
+
+  Widget _buildItemTile(
+      Map<String, dynamic> item, bool isExpense, String currencySymbol) {
+    final theme = Theme.of(context);
+    final categoryValue = item['category'];
+    Category category;
+    if (categoryValue is Map<String, dynamic>) {
+      category = Category.fromJson(categoryValue);
+    } else {
+      category =
+          Category(name: categoryValue.toString(), icon: Icons.category);
+    }
+    final amount = item['amount'] as double;
+    final iconData = category.icon;
+    return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: ListTile(
+            leading: CircleAvatar(child: Icon(iconData, size: 22)),
+            title: Text(item['name']),
+            subtitle: Text(category.name),
+            trailing: Text(
+                NumberFormat.currency(symbol: currencySymbol).format(amount),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isExpense ? Colors.redAccent : Colors.green)),
+            onTap: () => _showPlanningModal(item: item)));
+  }
+}
+
+// =========================================================================
+// MODAL LOGIC AND WIDGETS
+// =========================================================================
+
+class Category {
+  final String name;
+  final IconData icon;
+  Category({required this.name, required this.icon});
+  Map<String, dynamic> toJson() => {'name': name, 'icon': icon.codePoint};
+  factory Category.fromJson(Map<String, dynamic> json) => Category(
+      name: json['name'],
+      icon: IconData(json['icon'], fontFamily: 'MaterialIcons'));
+}
+
+Future<void> showPlanningInputModal(
+    BuildContext context,
+    DateTime day, {
+    required Function(bool isExpense, String name, double amount,
+            Category category, DateTime date, bool isRecurring)
+        onSave,
+    required VoidCallback onDelete,
+    Map<String, dynamic>? initialItem,
+  }) async {
+  await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.0))),
+      builder: (context) => PlanningInputSheet(
+          day: day,
+          onSave: onSave,
+          onDelete: onDelete,
+          initialItem: initialItem));
+}
+
+class PlanningInputSheet extends StatefulWidget {
+  final Function(bool isExpense, String name, double amount, Category category,
+      DateTime date, bool isRecurring) onSave;
+  final DateTime day;
+  final VoidCallback onDelete;
+  final Map<String, dynamic>? initialItem;
+
+  const PlanningInputSheet(
+      {super.key,
+      required this.day,
+      required this.onSave,
+      required this.onDelete,
+      this.initialItem});
+
+  @override
+  State<PlanningInputSheet> createState() => _PlanningInputSheetState();
+}
+
+class _PlanningInputSheetState extends State<PlanningInputSheet> {
+  final _nameController = TextEditingController();
+  final _amountController = TextEditingController();
+
+  late List<Category> _categories;
+  Category? _selectedCategory;
+  late DateTime _selectedDate;
+  bool _isRecurring = false;
+  bool _isLoadingCategories = true;
+  late bool _isExpense;
+  bool get _isEditing => widget.initialItem != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpense = _isEditing ? widget.initialItem!['isExpense'] : true;
+    _selectedDate =
+        _isEditing ? DateTime.parse(widget.initialItem!['date']) : widget.day;
+    if (_isEditing) {
+      _nameController.text = widget.initialItem!['name'];
+      _amountController.text = widget.initialItem!['amount'].toString();
+      _isRecurring = widget.initialItem!['isRecurring'];
+    }
+    _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _isLoadingCategories = true);
+    List<Category> loadedCategories;
+    String prefsKey =
+        _isExpense ? 'user_expense_categories' : 'user_income_categories';
+    if (_isExpense) {
+      loadedCategories = [
+        Category(name: 'Food', icon: Icons.fastfood_rounded),
+        Category(name: 'Transport', icon: Icons.directions_car_rounded),
+        Category(name: 'Shopping', icon: Icons.shopping_bag_rounded)
+      ];
+    } else {
+      loadedCategories = [
+        Category(name: 'Salary', icon: Icons.wallet_rounded),
+        Category(name: 'Gift', icon: Icons.card_giftcard_rounded),
+        Category(name: 'Bonus', icon: Icons.star_rounded)
+      ];
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final customCategoriesString = prefs.getString(prefsKey);
+    if (customCategoriesString != null) {
+      final List<dynamic> customCategoriesJson =
+          json.decode(customCategoriesString);
+      loadedCategories.addAll(
+          customCategoriesJson.map((jsonItem) => Category.fromJson(jsonItem)));
+    }
+    loadedCategories.add(Category(name: 'Other', icon: Icons.add_rounded));
+    setState(() {
+      _categories = loadedCategories;
+      if (_isEditing) {
+        // --- START OF FIX ---
+        final categoryValue = widget.initialItem!['category'];
+        Category savedCategory;
+        if (categoryValue is Map<String, dynamic>) {
+          savedCategory = Category.fromJson(categoryValue);
+        } else {
+          savedCategory = Category(name: categoryValue.toString(), icon: Icons.category);
+        }
+        _selectedCategory = _categories.firstWhere(
+            (c) => c.name == savedCategory.name,
+            orElse: () => _categories.first);
+        // --- END OF FIX ---
+      } else {
+        _selectedCategory = _categories.first;
+      }
+      _isLoadingCategories = false;
+    });
+  }
+
+  Future<void> _saveNewCategory(Category newCategory) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefsKey =
+        _isExpense ? 'user_expense_categories' : 'user_income_categories';
+    final customCategoriesString = prefs.getString(prefsKey);
+    List<dynamic> customCategoriesJson =
+        customCategoriesString != null ? json.decode(customCategoriesString) : [];
+    customCategoriesJson.add(newCategory.toJson());
+    await prefs.setString(prefsKey, json.encode(customCategoriesJson));
+    await _loadCategories();
+    setState(() {
+      _selectedCategory = _categories.firstWhere(
+          (c) => c.name == newCategory.name,
+          orElse: () => _categories.first);
+    });
+  }
+
+  void _handleSave() {
+    final loc = AppLocalizations.of(context);
+    if (_nameController.text.isEmpty ||
+        _amountController.text.isEmpty ||
+        _selectedCategory == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(loc.t('fillAllFields'))));
+      return;
+    }
+    final name = _nameController.text;
+    final amount = double.tryParse(_amountController.text) ?? 0.0;
+    widget.onSave(
+        _isExpense, name, amount, _selectedCategory!, _selectedDate, _isRecurring);
+    Navigator.pop(context);
+  }
+
+  void _handleDelete() {
+    widget.onDelete();
+    Navigator.pop(context);
+  }
+
+  Future<void> _showAddCategoryDialog() async {
+    final newCategory = await showDialog<Category>(
+        context: context, builder: (context) => const AddCategoryDialog());
+    if (newCategory != null) {
+      await _saveNewCategory(newCategory);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final loc = AppLocalizations.of(context);
+    final currencySymbol =
+        Provider.of<CurrencyProvider>(context, listen: false).currencySymbol;
+    return Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 24),
+        child: SingleChildScrollView(
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+              Text(
+                  _isEditing
+                      ? loc.t('modalEditTransaction')
+                      : loc.t('modalAddTransaction'),
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              if (!_isEditing) _buildTypeSwitcher(),
+              const SizedBox(height: 24),
+              _buildTextField(
+                  controller: _nameController,
+                  label: loc.t('modalExpenseName'),
+                  hint: _isExpense
+                      ? loc.t('lunchAtSubway')
+                      : loc.t('monthlySalary'),
+                  icon: Icons.edit_note_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(
+                  controller: _amountController,
+                  label: loc.t('modalAmountLabel'),
+                  hint: '0.00',
+                  icon: Icons.monetization_on_rounded,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  prefixText: '$currencySymbol '),
+              const SizedBox(height: 24),
+              Text(loc.t('modalCategory'), style: theme.textTheme.titleMedium),
+              const SizedBox(height: 12),
+              _isLoadingCategories
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildCategoryGrid(),
+              const SizedBox(height: 24),
+              Text(loc.t('planningDateLabel'),
+                  style: theme.textTheme.titleMedium),
+              const SizedBox(height: 12),
+              _buildDatePicker(),
+              const SizedBox(height: 16),
+              _buildRecurringCheckbox(),
+              const SizedBox(height: 32),
+              Row(children: [
+                if (_isEditing)
+                  IconButton(
+                      icon: Icon(Icons.delete_outline_rounded,
+                          color: colorScheme.error),
+                      onPressed: _handleDelete),
+                Expanded(
+                    child: ElevatedButton(
+                        onPressed: _handleSave,
+                        style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12))),
+                        child: Text(
+                            _isEditing
+                                ? loc.t('modalSaveChanges')
+                                : loc.t('modalSave'),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold))))
+              ]),
+              const SizedBox(height: 20)
+            ])));
+  }
+
+  Widget _buildTypeSwitcher() {
+    final theme = Theme.of(context);
+    final loc = AppLocalizations.of(context);
+    return Center(
+        child: ToggleButtons(
+            isSelected: [_isExpense, !_isExpense],
+            onPressed: (index) => setState(() {
+                  _isExpense = index == 0;
+                  _loadCategories();
+                }),
+            borderRadius: BorderRadius.circular(12.0),
+            selectedColor: theme.colorScheme.onPrimary,
+            color: theme.colorScheme.onSurfaceVariant,
+            fillColor: theme.colorScheme.primary,
+            constraints: BoxConstraints(
+                minHeight: 40.0,
+                minWidth: (MediaQuery.of(context).size.width - 60) / 2),
+            children: [Text(loc.t('expense')), Text(loc.t('income'))]));
+  }
+
+  Widget _buildTextField(
+      {required TextEditingController controller,
+      required String label,
+      required String hint,
+      required IconData icon,
+      String? prefixText,
+      TextInputType? keyboardType}) {
+    final theme = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon:
+                  Icon(icon, color: theme.colorScheme.onSurfaceVariant),
+              prefixText: prefixText,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                      color: theme.colorScheme.outline.withOpacity(0.5)))))
+    ]);
+  }
+
+  Widget _buildCategoryGrid() {
+    return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: _categories.map((category) {
+          final isSelected = _selectedCategory?.name == category.name;
+          return GestureDetector(
+              onTap: () {
+                if (category.name == 'Other') {
+                  _showAddCategoryDialog();
+                } else {
+                  setState(() => _selectedCategory = category);
+                }
+              },
+              child:
+                  _CategoryChip(category: category, isSelected: isSelected));
+        }).toList());
+  }
+
+  Widget _buildDatePicker() {
+    final theme = Theme.of(context);
+    final loc = AppLocalizations.of(context);
+    final formattedDate =
+        DateFormat.yMMMd(loc.locale.languageCode).format(_selectedDate);
+    return InkWell(
+        onTap: () async {
+          final pickedDate = await showDatePicker(
+              context: context,
+              initialDate: _selectedDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2030));
+          if (pickedDate != null) {
+            setState(() => _selectedDate = pickedDate);
+          }
+        },
+        child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.5))),
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(formattedDate, style: theme.textTheme.bodyLarge),
+                  Icon(Icons.calendar_month_rounded,
+                      color: theme.colorScheme.onSurfaceVariant)
+                ])));
+  }
+
+  Widget _buildRecurringCheckbox() {
+    final loc = AppLocalizations.of(context);
+    return CheckboxListTile(
+        title: Text(loc.t('planningIsMonthlyRecurringLabel')),
+        value: _isRecurring,
+        onChanged: (value) => setState(() => _isRecurring = value ?? false),
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: EdgeInsets.zero);
+  }
+}
+
+// --- HELPER WIDGETS FOR THE MODAL ---
+class _CategoryChip extends StatelessWidget {
+  final Category category;
+  final bool isSelected;
+  const _CategoryChip({required this.category, required this.isSelected});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer
+                : colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: isSelected ? colorScheme.primary : Colors.transparent,
+                width: 1.5)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(category.icon,
+              size: 20,
+              color: isSelected
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Text(category.name,
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: isSelected
+                      ? colorScheme.onPrimaryContainer
+                      : colorScheme.onSurfaceVariant))
+        ]));
+  }
+}
+
+class AddCategoryDialog extends StatefulWidget {
+  const AddCategoryDialog({super.key});
+  @override
+  State<AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<AddCategoryDialog> {
+  final _nameController = TextEditingController();
+  IconData _selectedIcon = Icons.star_rounded;
+  final List<IconData> _availableIcons = [
+    Icons.star_rounded,
+    Icons.card_giftcard_rounded,
+    Icons.local_cafe_rounded,
+    Icons.pets_rounded,
+    Icons.flight_rounded,
+    Icons.movie_filter_rounded,
+    Icons.sports_esports_rounded,
+    Icons.music_note_rounded,
+    Icons.brush_rounded,
+    Icons.build_rounded,
+    Icons.phone_android_rounded,
+    Icons.devices_other_rounded
+  ];
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+        title: const Text('Add New Category'),
+        content: SingleChildScrollView(
+            child:
+                Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                  labelText: 'Category Name', border: OutlineInputBorder())),
+          const SizedBox(height: 20),
+          Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _availableIcons.map((icon) {
+                final isSelected = _selectedIcon == icon;
+                return GestureDetector(
+                    onTap: () => setState(() => _selectedIcon = icon),
+                    child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: isSelected
+                                ? theme.colorScheme.primaryContainer
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isSelected
+                                ? Border.all(
+                                    color: theme.colorScheme.primary, width: 2)
+                                : null),
+                        child: Icon(icon,
+                            color: isSelected
+                                ? theme.colorScheme.onPrimaryContainer
+                                : theme.colorScheme.onSurfaceVariant)));
+              }).toList())
+        ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () {
+                if (_nameController.text.isNotEmpty) {
+                  final newCategory = Category(
+                      name: _nameController.text, icon: _selectedIcon);
+                  Navigator.pop(context, newCategory);
+                }
+              },
+              child: const Text('Save'))
+        ]);
   }
 }

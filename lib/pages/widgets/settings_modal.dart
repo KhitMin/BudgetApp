@@ -101,7 +101,7 @@ Widget _buildSettingsDropdown<T>({
   required ValueChanged<T?> onChanged,
 }) {
   return DropdownButtonFormField<T>(
-    value: value,
+    initialValue: value,
     items: items,
     onChanged: onChanged,
     isExpanded: true,

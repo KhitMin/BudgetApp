@@ -100,45 +100,6 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _isLoading = false);
   }
   
-  /// A helper function to add sample data to SharedPreferences for testing.
-  Future<void> _addSampleData() async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-
-      await prefs.setDouble('current_balance', 2847.0);
-      await prefs.setDouble('monthly_budget', 2000.0);
-
-      final sampleExpenses = {
-        DateTime.now().toIso8601String().substring(0, 10): [
-          {'name': 'Starbucks Coffee', 'amount': 5.47, 'category': 'Coffee'},
-        ],
-        DateTime.now().subtract(const Duration(days: 1)).toIso8601String().substring(0, 10): [
-          {'name': 'Shell Gas Station', 'amount': 42.80, 'category': 'Gas'},
-          {'name': 'Amazon Purchase', 'amount': 67.99, 'category': 'Shopping'},
-          {'name': 'Netflix Subscription', 'amount': 15.99, 'category': 'Subscription'},
-        ],
-        DateTime.now().subtract(const Duration(days: 2)).toIso8601String().substring(0, 10): [
-          {'name': 'Pizza Palace', 'amount': 23.50, 'category': 'Pizza'},
-        ]
-      };
-      await prefs.setString('allExpenses', json.encode(sampleExpenses));
-
-      final sampleBills = [
-        {'name': 'Rent Payment', 'amount': 1200.0, 'dueDate': DateTime.now().add(const Duration(days: 2)).toIso8601String()},
-        {'name': 'Electricity Bill', 'amount': 89.0, 'dueDate': DateTime.now().add(const Duration(days: 4)).toIso8601String()},
-        {'name': 'Phone Bill', 'amount': 65.0, 'dueDate': DateTime.now().add(const Duration(days: 6)).toIso8601String()},
-      ];
-      await prefs.setString('upcoming_bills', json.encode(sampleBills));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sample data added!')),
-        );
-      }
-
-      await _loadDashboardData();
-  }
-
   @override
   Widget build(BuildContext context) {
     // Get theme data for dynamic colors
@@ -166,11 +127,6 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addSampleData,
-        tooltip: 'Add Sample Data',
-        child: const Icon(Icons.add_chart),
       ),
     );
   }
@@ -266,7 +222,7 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
@@ -350,7 +306,7 @@ class _HomePageState extends State<HomePage> {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 12,
-                  backgroundColor: colorScheme.surfaceVariant,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
                 ),
               ),
@@ -406,7 +362,7 @@ class _HomePageState extends State<HomePage> {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: colorScheme.onSurfaceVariant),
@@ -482,7 +438,7 @@ class _HomePageState extends State<HomePage> {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: colorScheme.onSurfaceVariant),
@@ -558,7 +514,7 @@ class _HomePageState extends State<HomePage> {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: colorScheme.onSurfaceVariant),
@@ -577,7 +533,7 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.5),
+              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

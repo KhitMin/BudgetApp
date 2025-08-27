@@ -402,7 +402,7 @@ class _CategoryChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceVariant.withOpacity(0.5),
+        color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isSelected ? colorScheme.primary : Colors.transparent,
@@ -473,7 +473,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isSelected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceVariant,
+                      color: isSelected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                       border: isSelected ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
                     ),

@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:intl/intl.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -82,7 +81,7 @@ class AppLocalizations {
 
       // Reporting Page
       'reportTitle': 'Reports',
-      'reportWeekly': 'Weekly',
+      'reportWeekly': 'Weekly Expense by Category',
       'reportMonthly': 'Monthly',
       'reportYearly': 'Yearly',
       'reportNoData': 'No data for this period.',
