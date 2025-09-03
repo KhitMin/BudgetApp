@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'widgets/settings_modal.dart'; 
+import 'widgets/settings_modal.dart';
+import 'reporting_page.dart';
+import '../pages/widgets/notification_modal.dart';
 
 class HomePage extends StatefulWidget {
   final Function(int) onNavigateToTab;
 
-  const HomePage({
-    super.key,
-    required this.onNavigateToTab,
-  });
+  const HomePage({super.key, required this.onNavigateToTab});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -74,14 +73,17 @@ class _HomePageState extends State<HomePage> {
             final amount = (expense['amount'] as num).toDouble();
             totalSpent += amount;
             final category = expense['category'] as String;
-            categorySpending[category] = (categorySpending[category] ?? 0) + amount;
+            categorySpending[category] =
+                (categorySpending[category] ?? 0) + amount;
           }
         }
       });
     }
     _spentThisMonth = totalSpent;
-    
-    allExpensesList.sort((a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])));
+
+    allExpensesList.sort(
+      (a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
+    );
     _recentTransactions = allExpensesList.take(5).toList();
 
     var sortedCategories = categorySpending.entries.toList()
@@ -91,20 +93,26 @@ class _HomePageState extends State<HomePage> {
     // Load Upcoming Bills
     final billsString = prefs.getString('upcoming_bills');
     if (billsString != null) {
-      _upcomingBills = List<Map<String, dynamic>>.from(json.decode(billsString));
-      _upcomingBills.sort((a, b) => DateTime.parse(a['dueDate']).compareTo(DateTime.parse(b['dueDate'])));
+      _upcomingBills = List<Map<String, dynamic>>.from(
+        json.decode(billsString),
+      );
+      _upcomingBills.sort(
+        (a, b) => DateTime.parse(
+          a['dueDate'],
+        ).compareTo(DateTime.parse(b['dueDate'])),
+      );
     } else {
       _upcomingBills = [];
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     // Get theme data for dynamic colors
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -122,8 +130,6 @@ class _HomePageState extends State<HomePage> {
                     _buildMonthlySummaryCard(),
                     const SizedBox(height: 24),
                     _buildRecentExpensesCard(),
-                    const SizedBox(height: 24),
-                    _buildUpcomingBillsCard(),
                   ],
                 ),
               ),
@@ -134,14 +140,16 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHeader() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: Row(
         children: [
           const CircleAvatar(
             radius: 24,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'), // Placeholder
+            backgroundImage: NetworkImage(
+              'https://i.pravatar.cc/150?img=3',
+            ), // Placeholder
           ),
           const SizedBox(width: 16),
           Column(
@@ -159,11 +167,24 @@ class _HomePageState extends State<HomePage> {
           ),
           const Spacer(),
           IconButton(
-            icon: Icon(Icons.notifications_none_rounded, color: colorScheme.onSurfaceVariant),
-            onPressed: () {},
+            icon: Icon(
+              Icons.notifications_none_rounded,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () {
+            // 3. The call is now clean and simple.
+            showModalBottomSheet(
+              context: context,
+              // Just build the modal directly.
+              builder: (context) => const NotificationsModal(),
+            );
+          },
           ),
           IconButton(
-            icon: Icon(Icons.settings_rounded, color: colorScheme.onSurfaceVariant),
+            icon: Icon(
+              Icons.settings_rounded,
+              color: colorScheme.onSurfaceVariant,
+            ),
             onPressed: () {
               // This single line will now open your settings modal
               showSettingsModal(context);
@@ -182,7 +203,8 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.account_balance_wallet_outlined,
             title: 'Current Balance',
             amount: _currentBalance,
-            change: '+12%', // Note: Change percentage is static for this example
+            change:
+                '+12%', // Note: Change percentage is static for this example
             changeColor: Colors.green,
           ),
         ),
@@ -199,7 +221,7 @@ class _HomePageState extends State<HomePage> {
       ],
     );
   }
-  
+
   Widget _buildInfoCard({
     required IconData icon,
     required String title,
@@ -229,17 +251,27 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             Text(
-              NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(amount),
+              NumberFormat.currency(
+                symbol: '\$',
+                decimalDigits: 0,
+              ).format(amount),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(title, style: TextStyle(color: theme.hintColor, fontSize: 13)),
+                Text(
+                  title,
+                  style: TextStyle(color: theme.hintColor, fontSize: 13),
+                ),
                 const Spacer(),
                 Text(
                   change,
-                  style: TextStyle(color: changeColor, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(
+                    color: changeColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -252,7 +284,9 @@ class _HomePageState extends State<HomePage> {
   Widget _buildMonthlySummaryCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final double progress = (_monthlyBudget > 0) ? (_spentThisMonth / _monthlyBudget).clamp(0, 1) : 0;
+    final double progress = (_monthlyBudget > 0)
+        ? (_spentThisMonth / _monthlyBudget).clamp(0, 1)
+        : 0;
     final int remainingPercentage = ((1 - progress) * 100).toInt();
 
     return Card(
@@ -267,10 +301,9 @@ class _HomePageState extends State<HomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Monthly Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () {},
-                  child: Text('View Details', style: TextStyle(color: colorScheme.primary)),
+                const Text(
+                  'Monthly Summary',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -282,18 +315,31 @@ class _HomePageState extends State<HomePage> {
             if (_monthlyBudget > 0) ...[
               Row(
                 children: [
-                  Text('Budget Used', style: TextStyle(fontSize: 14, color: theme.hintColor)),
+                  Text(
+                    'Budget Used',
+                    style: TextStyle(fontSize: 14, color: theme.hintColor),
+                  ),
                   const Spacer(),
                   Text.rich(
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(_spentThisMonth),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          text: NumberFormat.currency(
+                            symbol: '\$',
+                            decimalDigits: 0,
+                          ).format(_spentThisMonth),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         TextSpan(
-                          text: ' / ${NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(_monthlyBudget)}',
-                          style: TextStyle(color: theme.hintColor, fontSize: 14),
+                          text:
+                              ' / ${NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(_monthlyBudget)}',
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
@@ -307,7 +353,9 @@ class _HomePageState extends State<HomePage> {
                   value: progress,
                   minHeight: 12,
                   backgroundColor: colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -326,20 +374,27 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             const SizedBox(height: 16),
-            const Text('Top Categories', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text(
+              'Top Categories',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             if (_topCategories.isEmpty)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text("No spending recorded this month."),
-              ))
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text("No spending recorded this month."),
+                ),
+              )
             else
               ..._topCategories.entries.map((entry) {
                 return _buildCategoryItem(
                   icon: categoryIcons[entry.key] ?? categoryIcons['Default']!,
                   category: entry.key,
                   amount: entry.value,
-                  percentage: _monthlyBudget > 0 ? (entry.value / _monthlyBudget * 100).toInt() : 0,
+                  percentage: _monthlyBudget > 0
+                      ? (entry.value / _monthlyBudget * 100).toInt()
+                      : 0,
                 );
               }),
           ],
@@ -356,7 +411,7 @@ class _HomePageState extends State<HomePage> {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
@@ -367,8 +422,14 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Icon(icon, color: colorScheme.onSurfaceVariant),
       ),
-      title: Text(category, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text('$percentage% of budget', style: TextStyle(color: theme.hintColor)),
+      title: Text(
+        category,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text(
+        '$percentage% of budget',
+        style: TextStyle(color: theme.hintColor),
+      ),
       trailing: Text(
         NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(amount),
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -378,7 +439,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildRecentExpensesCard() {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Card(
       elevation: 0,
@@ -389,16 +449,15 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Recent Expenses', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () {},
-                  child: Text('See All', style: TextStyle(color: colorScheme.primary)),
-                ),
-              ],
+            // The TextButton and Row have been removed, leaving only the title.
+            const Text(
+              'Recent Expenses',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
+            // Added a small gap for better spacing after removing the button row
+            const SizedBox(height: 8.0),
+
             if (_recentTransactions.isEmpty)
               const Center(
                 child: Padding(
@@ -407,10 +466,13 @@ class _HomePageState extends State<HomePage> {
                 ),
               )
             else
-              ..._recentTransactions.map((tx) {
+              // The .take(3) here limits the list to only three items.
+              ..._recentTransactions.take(3).map((tx) {
                 final date = DateTime.parse(tx['date']);
                 return _buildExpenseItem(
-                  icon: categoryIcons[tx['category']] ?? categoryIcons['Default']!,
+                  icon:
+                      categoryIcons[tx['category']] ??
+                      categoryIcons['Default']!,
                   name: tx['name'],
                   time: DateFormat.yMMMd().add_jm().format(date),
                   amount: (tx['amount'] as num).toDouble(),
@@ -422,7 +484,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-  
+
   Widget _buildExpenseItem({
     required IconData icon,
     required String name,
@@ -453,93 +515,9 @@ class _HomePageState extends State<HomePage> {
             "-${NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount)}",
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
-          Text(category, style: TextStyle(color: theme.hintColor, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildUpcomingBillsCard() {
-    final theme = Theme.of(context);
-
-    return Card(
-      elevation: 0,
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Upcoming Bills', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('Next 7 days', style: TextStyle(color: theme.hintColor)),
-            const SizedBox(height: 10),
-            if (_upcomingBills.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text("No upcoming bills."),
-                ),
-              )
-            else
-              ..._upcomingBills.map((bill) {
-                final dueDate = DateTime.parse(bill['dueDate']);
-                final daysLeft = dueDate.difference(DateTime.now()).inDays;
-                return _buildBillItem(
-                  icon: Icons.receipt_long_rounded, // Generic Icon
-                  name: bill['name'],
-                  dueDate: 'Due ${DateFormat.MMMd().format(dueDate)}',
-                  amount: (bill['amount'] as num).toDouble(),
-                  daysLeft: '$daysLeft days',
-                );
-              }),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildBillItem({
-    required IconData icon,
-    required String name,
-    required String dueDate,
-    required double amount,
-    required String daysLeft,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: colorScheme.onSurfaceVariant),
-      ),
-      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text(dueDate, style: TextStyle(color: theme.hintColor)),
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
           Text(
-            NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(amount),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              daysLeft, 
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colorScheme.onSurfaceVariant),
-            ),
+            category,
+            style: TextStyle(color: theme.hintColor, fontSize: 12),
           ),
         ],
       ),

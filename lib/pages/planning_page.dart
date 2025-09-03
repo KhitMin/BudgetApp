@@ -146,7 +146,7 @@ class _PlanningPageState extends State<PlanningPage> {
     bool isEditing = item != null;
     bool wasExpense = isEditing ? item!['isExpense'] : false;
     showPlanningInputModal(context,
-        isEditing ? DateTime.parse(item!['date']) : DateTime.now(),
+        isEditing ? DateTime.parse(item!['date']) : _currentMonth, // MODIFIED: Use _currentMonth for new items
         onSave: (isExpense, name, amount, category, date, isRecurring) {
       if (isEditing) {
         _onItemUpdate(
@@ -518,6 +518,7 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
   late List<Category> _categories;
   Category? _selectedCategory;
   late DateTime _selectedDate;
+  late int _selectedDayOfMonth; // ADDED: For recurring day picking
   bool _isRecurring = false;
   bool _isLoadingCategories = true;
   late bool _isExpense;
@@ -529,10 +530,12 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
     _isExpense = _isEditing ? widget.initialItem!['isExpense'] : true;
     _selectedDate =
         _isEditing ? DateTime.parse(widget.initialItem!['date']) : widget.day;
+    _isRecurring = _isEditing ? widget.initialItem!['isRecurring'] : false;
+    _selectedDayOfMonth = _selectedDate.day; // Initialize day from date
+
     if (_isEditing) {
       _nameController.text = widget.initialItem!['name'];
       _amountController.text = widget.initialItem!['amount'].toString();
-      _isRecurring = widget.initialItem!['isRecurring'];
     }
     _loadCategories();
   }
@@ -574,7 +577,6 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
     setState(() {
       _categories = loadedCategories;
       if (_isEditing) {
-        // --- START OF FIX ---
         final categoryValue = widget.initialItem!['category'];
         Category savedCategory;
         if (categoryValue is Map<String, dynamic>) {
@@ -585,7 +587,6 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
         _selectedCategory = _categories.firstWhere(
             (c) => c.name == savedCategory.name,
             orElse: () => _categories.first);
-        // --- END OF FIX ---
       } else {
         _selectedCategory = _categories.first;
       }
@@ -621,8 +622,19 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
     }
     final name = _nameController.text;
     final amount = double.tryParse(_amountController.text) ?? 0.0;
+
+    // MODIFIED: Determine the correct date to save based on recurring status
+    final DateTime dateToSave;
+    if (_isRecurring) {
+      // For recurring items, construct a date using the currently viewed month/year
+      // and the selected day of the month.
+      dateToSave = DateTime(widget.day.year, widget.day.month, _selectedDayOfMonth);
+    } else {
+      dateToSave = _selectedDate;
+    }
+
     widget.onSave(
-        _isExpense, name, amount, _selectedCategory!, _selectedDate, _isRecurring);
+        _isExpense, name, amount, _selectedCategory!, dateToSave, _isRecurring);
     Navigator.pop(context);
   }
 
@@ -689,13 +701,17 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
                   ? const Center(child: CircularProgressIndicator())
                   : _buildCategoryGrid(),
               const SizedBox(height: 24),
+
+              // --- MODIFIED SECTION: Recurring checkbox is now before date picker ---
+              _buildRecurringCheckbox(),
+              const SizedBox(height: 16),
               Text(loc.t('planningDateLabel'),
                   style: theme.textTheme.titleMedium),
               const SizedBox(height: 12),
-              _buildDatePicker(),
-              const SizedBox(height: 16),
-              _buildRecurringCheckbox(),
+              _buildDateOrDayPicker(), // This widget now handles both cases
               const SizedBox(height: 32),
+              // --- END OF MODIFIED SECTION ---
+
               Row(children: [
                 if (_isEditing)
                   IconButton(
@@ -790,35 +806,144 @@ class _PlanningInputSheetState extends State<PlanningInputSheet> {
         }).toList());
   }
 
-  Widget _buildDatePicker() {
+Widget _buildDayGridForDialog() {
     final theme = Theme.of(context);
-    final loc = AppLocalizations.of(context);
-    final formattedDate =
-        DateFormat.yMMMd(loc.locale.languageCode).format(_selectedDate);
-    return InkWell(
-        onTap: () async {
-          final pickedDate = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030));
-          if (pickedDate != null) {
-            setState(() => _selectedDate = pickedDate);
-          }
-        },
-        child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.5))),
-            child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(formattedDate, style: theme.textTheme.bodyLarge),
-                  Icon(Icons.calendar_month_rounded,
-                      color: theme.colorScheme.onSurfaceVariant)
-                ])));
+    final colorScheme = theme.colorScheme;
+
+    // Use a StatefulBuilder so the dialog can update its own UI on tap
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: 31,
+          itemBuilder: (context, index) {
+            final day = index + 1;
+            // The selected day is now managed by the dialog's temporary state
+            final isSelected = day == _selectedDayOfMonth;
+            
+            BoxDecoration decoration;
+            Color textColor;
+
+            if (isSelected) {
+              decoration = BoxDecoration(
+                color: colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              );
+              textColor = colorScheme.onPrimaryContainer;
+            } else {
+              decoration = const BoxDecoration();
+              textColor = colorScheme.onSurface;
+            }
+
+            return GestureDetector(
+              onTap: () {
+                // When a day is tapped, pop the dialog and return the day
+                Navigator.of(context).pop(day);
+              },
+              child: Container(
+                alignment: Alignment.center,
+                decoration: decoration,
+                child: Text(
+                  day.toString(),
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }
+    );
+  }
+
+  // --- NEW: Function to show the overlayed day picker dialog ---
+  Future<void> _showDayPickerOverlay() async {
+    final selectedDay = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Select Day of Month"),
+          contentPadding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 0),
+          content: SizedBox(
+            width: 300, // Constrain the width of the dialog
+            child: _buildDayGridForDialog(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            )
+          ],
+        );
+      },
+    );
+
+    if (selectedDay != null) {
+      setState(() {
+        _selectedDayOfMonth = selectedDay;
+      });
+    }
+  }
+
+// MODIFIED: This widget now conditionally shows a day picker or a date picker
+  Widget _buildDateOrDayPicker() {
+    final theme = Theme.of(context);
+
+    if (_isRecurring) {
+      // Show a field that, when tapped, opens the day picker dialog
+      return InkWell(
+          onTap: _showDayPickerOverlay,
+          child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.5))),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Day $_selectedDayOfMonth of the month", style: theme.textTheme.bodyLarge),
+                    Icon(Icons.calendar_month_outlined,
+                        color: theme.colorScheme.onSurfaceVariant)
+                  ])));
+    } else {
+      // Otherwise, show the original full date picker
+      final loc = AppLocalizations.of(context);
+      final formattedDate =
+          DateFormat.yMMMd(loc.locale.languageCode).format(_selectedDate);
+      return InkWell(
+          onTap: () async {
+            final pickedDate = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030));
+            if (pickedDate != null) {
+              setState(() => _selectedDate = pickedDate);
+            }
+          },
+          child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.5))),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(formattedDate, style: theme.textTheme.bodyLarge),
+                    Icon(Icons.calendar_month_rounded,
+                        color: theme.colorScheme.onSurfaceVariant)
+                  ])));
+    }
   }
 
   Widget _buildRecurringCheckbox() {

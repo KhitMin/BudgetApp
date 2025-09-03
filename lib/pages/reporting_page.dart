@@ -9,10 +9,12 @@ import '../l10n/app_localizations.dart';
 import 'reports/monthly_report_view.dart';
 import 'reports/weekly_report_view.dart';
 // This import now gives us access to both the YearlyReportView and the CategorySummary class
-import 'reports/yearly_report_view.dart'; 
+import 'reports/yearly_report_view.dart';
 
 class ReportingPage extends StatefulWidget {
-  const ReportingPage({super.key});
+  final int initialTabIndex;
+
+  const ReportingPage({super.key, this.initialTabIndex = 0});
 
   @override
   State<ReportingPage> createState() => _ReportingPageState();
@@ -34,7 +36,7 @@ class _ReportingPageState extends State<ReportingPage>
   double _currentWeekIncome = 0;
   double _previousWeekIncome = 0;
   double _previousWeekExpenses = 0;
-  
+
   // Monthly
   Map<String, double> _monthlyCategoryExpenses = {};
   double _currentMonthIncome = 0;
@@ -47,7 +49,7 @@ class _ReportingPageState extends State<ReportingPage>
   double _yearlyTotalExpense = 0;
   double _previousYearIncome = 0;
   double _previousYearExpenses = 0;
-  
+
   // Planning
   Map<String, double> _plannedAmounts = {};
   Map<String, double> _actualAmounts = {};
@@ -59,7 +61,11 @@ class _ReportingPageState extends State<ReportingPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex ?? 0, // This FIXES the error
+    );
     _loadInitialData();
   }
 
@@ -67,7 +73,9 @@ class _ReportingPageState extends State<ReportingPage>
 
   Future<void> _loadInitialData() async {
     if (!mounted) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     final prefs = await SharedPreferences.getInstance();
     final expensesString = prefs.getString('allExpenses');
@@ -76,10 +84,14 @@ class _ReportingPageState extends State<ReportingPage>
 
     if (expensesString != null) {
       final decoded = json.decode(expensesString) as Map<String, dynamic>;
-      _allExpensesData = decoded.map((key, value) => MapEntry(
-          DateTime.parse(key), List<Map<String, dynamic>>.from(value)));
+      _allExpensesData = decoded.map(
+        (key, value) => MapEntry(
+          DateTime.parse(key),
+          List<Map<String, dynamic>>.from(value),
+        ),
+      );
     }
-    
+
     if (_allIncomesData != null) {
       final decoded = json.decode(_allIncomesData!) as Map<String, dynamic>;
       decoded.forEach((monthKey, incomes) {
@@ -92,7 +104,9 @@ class _ReportingPageState extends State<ReportingPage>
 
     _recalculateAllReports();
     if (mounted) {
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -102,16 +116,18 @@ class _ReportingPageState extends State<ReportingPage>
     _calculateYearlySummaryData();
     _calculatePlanningVsActual();
   }
-  
+
   Map<String, double> _aggregateExpenses(DateTime start, DateTime end) {
     Map<String, double> categoryExpenses = {};
     _allExpensesData.forEach((date, expenses) {
       final localDate = date.toLocal();
-      if (!localDate.isBefore(start) && localDate.isBefore(end.add(const Duration(days: 1)))) {
+      if (!localDate.isBefore(start) &&
+          localDate.isBefore(end.add(const Duration(days: 1)))) {
         for (var expense in expenses) {
           final category = expense['category'] as String;
           final amount = (expense['amount'] as num).toDouble();
-          categoryExpenses[category] = (categoryExpenses[category] ?? 0) + amount;
+          categoryExpenses[category] =
+              (categoryExpenses[category] ?? 0) + amount;
         }
       }
     });
@@ -119,15 +135,19 @@ class _ReportingPageState extends State<ReportingPage>
   }
 
   // New method to get full details including transaction count
-  Map<String, CategorySummary> _aggregateExpenseDetails(DateTime start, DateTime end) {
+  Map<String, CategorySummary> _aggregateExpenseDetails(
+    DateTime start,
+    DateTime end,
+  ) {
     Map<String, CategorySummary> categoryDetails = {};
     _allExpensesData.forEach((date, expenses) {
       final localDate = date.toLocal();
-      if (!localDate.isBefore(start) && localDate.isBefore(end.add(const Duration(days: 1)))) {
+      if (!localDate.isBefore(start) &&
+          localDate.isBefore(end.add(const Duration(days: 1)))) {
         for (var expense in expenses) {
           final category = expense['category'] as String;
           final amount = (expense['amount'] as num).toDouble();
-          
+
           final currentTotal = categoryDetails[category]?.totalAmount ?? 0;
           final currentCount = categoryDetails[category]?.transactionCount ?? 0;
 
@@ -140,14 +160,15 @@ class _ReportingPageState extends State<ReportingPage>
     });
     return categoryDetails;
   }
-  
+
   double _getIncomeForPeriod(DateTime start, DateTime end) {
     double totalIncome = 0;
     _allIncomesByDate.forEach((date, incomes) {
-       final localDate = date.toLocal();
-      if (!localDate.isBefore(start) && localDate.isBefore(end.add(const Duration(days: 1)))) {
+      final localDate = date.toLocal();
+      if (!localDate.isBefore(start) &&
+          localDate.isBefore(end.add(const Duration(days: 1)))) {
         for (var income in incomes) {
-           totalIncome += (income['amount'] as num).toDouble();
+          totalIncome += (income['amount'] as num).toDouble();
         }
       }
     });
@@ -155,16 +176,24 @@ class _ReportingPageState extends State<ReportingPage>
   }
 
   void _calculateWeeklySummaryData() {
-    final startOfWeek = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    final startOfWeek = _selectedDate.subtract(
+      Duration(days: _selectedDate.weekday - 1),
+    );
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
-    
+
     _weeklyCategoryExpenses = _aggregateExpenses(startOfWeek, endOfWeek);
     _currentWeekIncome = _getIncomeForPeriod(startOfWeek, endOfWeek);
 
     final startOfPrevWeek = startOfWeek.subtract(const Duration(days: 7));
     final endOfPrevWeek = startOfWeek.subtract(const Duration(days: 1));
-    final prevWeekExpensesMap = _aggregateExpenses(startOfPrevWeek, endOfPrevWeek);
-    _previousWeekExpenses = prevWeekExpensesMap.values.fold(0.0, (sum, item) => sum + item);
+    final prevWeekExpensesMap = _aggregateExpenses(
+      startOfPrevWeek,
+      endOfPrevWeek,
+    );
+    _previousWeekExpenses = prevWeekExpensesMap.values.fold(
+      0.0,
+      (sum, item) => sum + item,
+    );
     _previousWeekIncome = _getIncomeForPeriod(startOfPrevWeek, endOfPrevWeek);
   }
 
@@ -174,25 +203,47 @@ class _ReportingPageState extends State<ReportingPage>
     _monthlyCategoryExpenses = _aggregateExpenses(startOfMonth, endOfMonth);
     _currentMonthIncome = _getIncomeForPeriod(startOfMonth, endOfMonth);
 
-    final startOfPrevMonth = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+    final startOfPrevMonth = DateTime(
+      _selectedDate.year,
+      _selectedDate.month - 1,
+      1,
+    );
     final endOfPrevMonth = DateTime(_selectedDate.year, _selectedDate.month, 0);
-    final prevMonthExpensesMap = _aggregateExpenses(startOfPrevMonth, endOfPrevMonth);
-    _previousMonthExpenses = prevMonthExpensesMap.values.fold(0.0, (sum, item) => sum + item);
-    _previousMonthIncome = _getIncomeForPeriod(startOfPrevMonth, endOfPrevMonth);
+    final prevMonthExpensesMap = _aggregateExpenses(
+      startOfPrevMonth,
+      endOfPrevMonth,
+    );
+    _previousMonthExpenses = prevMonthExpensesMap.values.fold(
+      0.0,
+      (sum, item) => sum + item,
+    );
+    _previousMonthIncome = _getIncomeForPeriod(
+      startOfPrevMonth,
+      endOfPrevMonth,
+    );
   }
 
   void _calculateYearlySummaryData() {
     final startOfYear = DateTime(_selectedDate.year, 1, 1);
     final endOfYear = DateTime(_selectedDate.year, 12, 31);
-    
+
     _yearlyCategorySummaries = _aggregateExpenseDetails(startOfYear, endOfYear);
-    _yearlyTotalExpense = _yearlyCategorySummaries.values.fold(0.0, (sum, item) => sum + item.totalAmount);
+    _yearlyTotalExpense = _yearlyCategorySummaries.values.fold(
+      0.0,
+      (sum, item) => sum + item.totalAmount,
+    );
     _yearlyTotalIncome = _getIncomeForPeriod(startOfYear, endOfYear);
 
     final startOfPrevYear = DateTime(_selectedDate.year - 1, 1, 1);
     final endOfPrevYear = DateTime(_selectedDate.year - 1, 12, 31);
-    final prevYearExpensesMap = _aggregateExpenseDetails(startOfPrevYear, endOfPrevYear);
-    _previousYearExpenses = prevYearExpensesMap.values.fold(0.0, (sum, item) => sum + item.totalAmount);
+    final prevYearExpensesMap = _aggregateExpenseDetails(
+      startOfPrevYear,
+      endOfPrevYear,
+    );
+    _previousYearExpenses = prevYearExpensesMap.values.fold(
+      0.0,
+      (sum, item) => sum + item.totalAmount,
+    );
     _previousYearIncome = _getIncomeForPeriod(startOfPrevYear, endOfPrevYear);
   }
 
@@ -242,7 +293,9 @@ class _ReportingPageState extends State<ReportingPage>
                   previousWeekIncome: _previousWeekIncome,
                   previousWeekExpenses: _previousWeekExpenses,
                   onPrevious: () => setState(() {
-                    _selectedDate = _selectedDate.subtract(const Duration(days: 7));
+                    _selectedDate = _selectedDate.subtract(
+                      const Duration(days: 7),
+                    );
                     _recalculateAllReports();
                   }),
                   onNext: () => setState(() {
@@ -260,11 +313,19 @@ class _ReportingPageState extends State<ReportingPage>
                   previousMonthIncome: _previousMonthIncome,
                   previousMonthExpenses: _previousMonthExpenses,
                   onPrevious: () => setState(() {
-                    _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+                    _selectedDate = DateTime(
+                      _selectedDate.year,
+                      _selectedDate.month - 1,
+                      1,
+                    );
                     _recalculateAllReports();
                   }),
-                   onNext: () => setState(() {
-                    _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
+                  onNext: () => setState(() {
+                    _selectedDate = DateTime(
+                      _selectedDate.year,
+                      _selectedDate.month + 1,
+                      1,
+                    );
                     _recalculateAllReports();
                   }),
                 ),
