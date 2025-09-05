@@ -51,16 +51,11 @@ class _RecordsPageState extends State<RecordsPage> {
     _loadAllData();
   }
 
-  // lib/pages/records_page.dart
-
-  // REPLACE your existing _loadAllData method with this one
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     List<Transaction> loadedTransactions = [];
     Set<String> categories = {};
-
-    // --- START OF CORRECTION ---
 
     // Load Incomes from the correct key: 'planned_incomes'
     final incomesString = prefs.getString('planned_incomes');
@@ -113,8 +108,6 @@ class _RecordsPageState extends State<RecordsPage> {
         }
       });
     }
-
-    // --- END OF CORRECTION ---
 
     setState(() {
       _allTransactions = loadedTransactions;
