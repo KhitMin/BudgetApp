@@ -246,10 +246,11 @@ class _RecordsPageState extends State<RecordsPage> {
         );
         if (picked != null) {
           setState(() {
-            if (isStart)
+            if (isStart) {
               _startDate = picked;
-            else
+            } else {
               _endDate = picked;
+            }
           });
         }
       },
@@ -291,9 +292,9 @@ class _RecordsPageState extends State<RecordsPage> {
         ],
         onPressed: (index) {
           setState(() {
-            if (index == 0)
+            if (index == 0) {
               _transactionType = 'All';
-            else if (index == 1)
+            } else if (index == 1)
               _transactionType = 'Income';
             else
               _transactionType = 'Expenses';
@@ -320,7 +321,7 @@ class _RecordsPageState extends State<RecordsPage> {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return DropdownButtonFormField<String>(
-      value: _selectedCategory,
+      initialValue: _selectedCategory,
       hint: Text(loc.t('allCategories')),
       decoration: InputDecoration(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

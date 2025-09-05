@@ -144,19 +144,19 @@ class _PlanningPageState extends State<PlanningPage> {
 
   void _showPlanningModal({Map<String, dynamic>? item}) {
     bool isEditing = item != null;
-    bool wasExpense = isEditing ? item!['isExpense'] : false;
+    bool wasExpense = isEditing ? item['isExpense'] : false;
     showPlanningInputModal(context,
-        isEditing ? DateTime.parse(item!['date']) : _currentMonth, // MODIFIED: Use _currentMonth for new items
+        isEditing ? DateTime.parse(item['date']) : _currentMonth, // MODIFIED: Use _currentMonth for new items
         onSave: (isExpense, name, amount, category, date, isRecurring) {
       if (isEditing) {
         _onItemUpdate(
-            item!, wasExpense, isExpense, name, amount, category, date, isRecurring);
+            item, wasExpense, isExpense, name, amount, category, date, isRecurring);
       } else {
         _onItemSave(isExpense, name, amount, category, date, isRecurring);
       }
     }, onDelete: () {
       if (isEditing) {
-        _onItemDelete(item!, wasExpense);
+        _onItemDelete(item, wasExpense);
       }
     }, initialItem: item);
   }

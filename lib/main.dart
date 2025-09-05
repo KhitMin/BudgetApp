@@ -121,7 +121,7 @@ class _MainScreenState extends State<MainScreen> {
     final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Budget Planner'),
+        title: Text(loc.t('appTitle')),
         elevation: 1,
       ),
       body: Center(

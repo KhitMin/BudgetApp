@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import '../l10n/app_localizations.dart';
 import 'widgets/settings_modal.dart';
 import 'reporting_page.dart';
 import '../pages/widgets/notification_modal.dart';
@@ -155,9 +156,9 @@ class _HomePageState extends State<HomePage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Budget Tracker',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Text(
+                AppLocalizations.of(context).t('appTitle'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
                 DateFormat.yMMMM().format(DateTime.now()),
@@ -201,7 +202,7 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: _buildInfoCard(
             icon: Icons.account_balance_wallet_outlined,
-            title: 'Current Balance',
+            title: AppLocalizations.of(context).t('homeIncome'),
             amount: _currentBalance,
             change:
                 '+12%', // Note: Change percentage is static for this example
@@ -212,7 +213,7 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: _buildInfoCard(
             icon: Icons.arrow_downward_rounded,
-            title: 'This Month Spent',
+            title: AppLocalizations.of(context).t('homeSpent'),
             amount: _spentThisMonth,
             change: '-8%', // Note: Change percentage is static for this example
             changeColor: Colors.red,
@@ -260,11 +261,14 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(color: theme.hintColor, fontSize: 13),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(color: theme.hintColor, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   change,
                   style: TextStyle(
@@ -301,14 +305,17 @@ class _HomePageState extends State<HomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Monthly Summary',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context).t('homeSummaryTitle', args: {
+                    'month': DateFormat.MMMM().format(DateTime.now())
+                  }),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             Text(
-              '${DateFormat.MMMM().format(DateTime.now())} Overview',
+              AppLocalizations.of(context).t('homeMonthlyOverview', 
+                args: {'month': DateFormat.MMMM().format(DateTime.now())}),
               style: TextStyle(color: theme.hintColor),
             ),
             const SizedBox(height: 16),
@@ -316,7 +323,7 @@ class _HomePageState extends State<HomePage> {
               Row(
                 children: [
                   Text(
-                    'Budget Used',
+                    AppLocalizations.of(context).t('planningPlannedBudget'),
                     style: TextStyle(fontSize: 14, color: theme.hintColor),
                   ),
                   const Spacer(),
@@ -362,28 +369,30 @@ class _HomePageState extends State<HomePage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  '$remainingPercentage% remaining this month',
+                  AppLocalizations.of(context).t('homeRemaining', args: {
+                    'percent': remainingPercentage.toString()
+                  }),
                   style: TextStyle(color: theme.hintColor, fontSize: 12),
                 ),
               ),
             ] else
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text("No budget set for this month."),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(AppLocalizations.of(context).t('planningNoIncomePrompt')),
                 ),
               ),
             const SizedBox(height: 16),
-            const Text(
-              'Top Categories',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context).t('homeTopCategories'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             if (_topCategories.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text("No spending recorded this month."),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(AppLocalizations.of(context).t('reportNoData')),
                 ),
               )
             else
@@ -427,7 +436,7 @@ class _HomePageState extends State<HomePage> {
         style: const TextStyle(fontWeight: FontWeight.w500),
       ),
       subtitle: Text(
-        '$percentage% of budget',
+        AppLocalizations.of(context).t('homePercentBudget', args: {'percent': percentage.toString()}),
         style: TextStyle(color: theme.hintColor),
       ),
       trailing: Text(
@@ -450,19 +459,19 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // The TextButton and Row have been removed, leaving only the title.
-            const Text(
-              'Recent Expenses',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context).t('homeRecentTransactions'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             // Added a small gap for better spacing after removing the button row
             const SizedBox(height: 8.0),
 
             if (_recentTransactions.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text("No transactions yet."),
+                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+                  child: Text(AppLocalizations.of(context).t('homeNoTransactions')),
                 ),
               )
             else
@@ -505,7 +514,10 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Icon(icon, color: colorScheme.onSurfaceVariant),
       ),
-      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
+      title: Text(
+        AppLocalizations.of(context).t(name), 
+        style: const TextStyle(fontWeight: FontWeight.w500)
+      ),
       subtitle: Text(time, style: TextStyle(color: theme.hintColor)),
       trailing: Column(
         crossAxisAlignment: CrossAxisAlignment.end,

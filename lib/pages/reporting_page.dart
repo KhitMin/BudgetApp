@@ -26,7 +26,7 @@ class _ReportingPageState extends State<ReportingPage>
 
   // --- RAW DATA STATE ---
   Map<DateTime, List<Map<String, dynamic>>> _allExpensesData = {};
-  Map<DateTime, List<Map<String, dynamic>>> _allIncomesByDate = {};
+  final Map<DateTime, List<Map<String, dynamic>>> _allIncomesByDate = {};
   String? _allIncomesData;
   String? _allPlansData;
 

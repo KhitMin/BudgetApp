@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../providers/theme_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/currency_provider.dart';
@@ -74,10 +73,10 @@ Future<void> showSettingsModal(BuildContext context) async {
                   const SizedBox(height: 8),
                   _buildSettingsDropdown<String>(
                     value: currentCurrency,
-                    items: const [
-                      DropdownMenuItem(value: 'MMK', child: Text('Myanmar Kyat (MMK)')),
-                      DropdownMenuItem(value: '\$', child: Text('US Dollar (\$)')),
-                      DropdownMenuItem(value: '₩', child: Text('Korean Won (₩)')),
+                    items: [
+                      DropdownMenuItem(value: 'MMK', child: Text(loc.t('currencyMMK'))),
+                      DropdownMenuItem(value: '\$', child: Text(loc.t('currencyUSD'))),
+                      DropdownMenuItem(value: '₩', child: Text(loc.t('currencyKRW'))),
                     ],
                     onChanged: (c) {
                       if (c != null) currencyProvider.setCurrency(c);

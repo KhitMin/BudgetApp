@@ -61,7 +61,7 @@ class _NotificationsModalState extends State<NotificationsModal> {
     final now = DateTime.now();
     final List<PlannedExpense> upcoming = [];
 
-    expensesData.values.forEach((expenseList) {
+    for (var expenseList in expensesData.values) {
       for (var expenseJson in expenseList) {
         final expense = PlannedExpense.fromJson(expenseJson as Map<String, dynamic>);
 
@@ -87,7 +87,7 @@ class _NotificationsModalState extends State<NotificationsModal> {
           }
         }
       }
-    });
+    }
 
     upcoming.sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
@@ -155,7 +155,7 @@ class _NotificationsModalState extends State<NotificationsModal> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               );
-            }).toList(),
+            }),
         ],
       ),
     );

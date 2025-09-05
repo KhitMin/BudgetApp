@@ -80,9 +80,18 @@ class _BudgetPageState extends State<BudgetPage> {
     await prefs.setString('allIncomes', json.encode(_allIncomes));
   }
 
+  // --- BALANCE HANDLING ---
+
+  Future<void> _updateCurrentBalance(double amount, bool isExpense) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentBalance = prefs.getDouble('current_balance') ?? 0.0;
+    final newBalance = isExpense ? currentBalance - amount : currentBalance + amount;
+    await prefs.setDouble('current_balance', newBalance);
+  }
+
   // --- TRANSACTION HANDLING ---
   
-  void _handleSaveTransaction(bool isExpense, DateTime date, String name, double amount, String category, TimeOfDay time) {
+  Future<void> _handleSaveTransaction(bool isExpense, DateTime date, String name, double amount, String category, TimeOfDay time) async {
     final transaction = {'name': name, 'amount': amount, 'category': category, 'time': '${time.hour}:${time.minute}'};
     final key = DateFormat('yyyy-MM-dd').format(date);
     
@@ -90,45 +99,100 @@ class _BudgetPageState extends State<BudgetPage> {
       final dailyExpenses = _allExpenses[key] ?? [];
       dailyExpenses.add(transaction);
       _allExpenses[key] = dailyExpenses;
-      _saveExpensesToPrefs();
+      await _saveExpensesToPrefs();
+      await _updateCurrentBalance(amount, true); // Update balance for expense
     } else {
       final dailyIncomes = _allIncomes[key] ?? [];
       dailyIncomes.add(transaction);
       _allIncomes[key] = dailyIncomes;
-      _saveIncomesToPrefs();
+      await _saveIncomesToPrefs();
+      await _updateCurrentBalance(amount, false); // Update balance for income
     }
     setState(() {});
   }
 
-  void _updateExpense(DateTime date, int index, String name, double amount, String category, TimeOfDay time) {
+  Future<void> _updateTransaction(bool isExpense, DateTime date, int index, String name, double amount, String category, TimeOfDay time) async {
     final key = DateFormat('yyyy-MM-dd').format(date);
-    final dailyExpenses = _allExpenses[key] ?? [];
-    dailyExpenses[index] = {'name': name, 'amount': amount, 'category': category, 'time': '${time.hour}:${time.minute}'};
-    _allExpenses[key] = dailyExpenses;
-    _saveExpensesToPrefs();
-    setState(() {});
-  }
-
-  void _deleteExpense(DateTime date, int index) {
-    final key = DateFormat('yyyy-MM-dd').format(date);
-    final dailyExpenses = _allExpenses[key] ?? [];
-    dailyExpenses.removeAt(index);
-    if (dailyExpenses.isEmpty) {
-      _allExpenses.remove(key);
-    } else {
+    
+    if (isExpense) {
+      final dailyExpenses = _allExpenses[key] ?? [];
+      final oldAmount = dailyExpenses[index]['amount'] as double;
+      
+      dailyExpenses[index] = {'name': name, 'amount': amount, 'category': category, 'time': '${time.hour}:${time.minute}'};
       _allExpenses[key] = dailyExpenses;
+      await _saveExpensesToPrefs();
+      
+      await _updateCurrentBalance(oldAmount, false); // Add back old amount
+      await _updateCurrentBalance(amount, true);    // Subtract new amount
+    } else {
+      final dailyIncomes = _allIncomes[key] ?? [];
+      final oldAmount = dailyIncomes[index]['amount'] as double;
+      
+      dailyIncomes[index] = {'name': name, 'amount': amount, 'category': category, 'time': '${time.hour}:${time.minute}'};
+      _allIncomes[key] = dailyIncomes;
+      await _saveIncomesToPrefs();
+      
+      await _updateCurrentBalance(oldAmount, true);  // Subtract old amount
+      await _updateCurrentBalance(amount, false);   // Add new amount
     }
-    _saveExpensesToPrefs();
+    
+    setState(() {});
+  }
+
+  Future<void> _deleteTransaction(bool isExpense, DateTime date, int index) async {
+    final key = DateFormat('yyyy-MM-dd').format(date);
+    
+    if (isExpense) {
+      final dailyExpenses = _allExpenses[key] ?? [];
+      if (index < 0 || index >= dailyExpenses.length) {
+        print('Invalid expense index: $index, list length: ${dailyExpenses.length}');
+        return;
+      }
+      
+      final deletedAmount = dailyExpenses[index]['amount'] as double;
+      dailyExpenses.removeAt(index);
+      
+      if (dailyExpenses.isEmpty) {
+        _allExpenses.remove(key);
+      } else {
+        _allExpenses[key] = dailyExpenses;
+      }
+      await _saveExpensesToPrefs();
+      await _updateCurrentBalance(deletedAmount, false); // Add back the deleted amount
+    } else {
+      final dailyIncomes = _allIncomes[key] ?? [];
+      if (index < 0 || index >= dailyIncomes.length) {
+        print('Invalid income index: $index, list length: ${dailyIncomes.length}');
+        return;
+      }
+      
+      final deletedAmount = dailyIncomes[index]['amount'] as double;
+      dailyIncomes.removeAt(index);
+      
+      if (dailyIncomes.isEmpty) {
+        _allIncomes.remove(key);
+      } else {
+        _allIncomes[key] = dailyIncomes;
+      }
+      await _saveIncomesToPrefs();
+      await _updateCurrentBalance(deletedAmount, true); // Subtract the deleted amount
+    }
+    
     setState(() {});
   }
   
   List<Map<String, dynamic>> _getCombinedDailyTransactions(DateTime day) {
     final key = DateFormat('yyyy-MM-dd').format(day);
     
-    final expenses = _allExpenses[key]?.map((e) => {...e, 'type': 'expense'}) ?? [];
-    final incomes = _allIncomes[key]?.map((i) => {...i, 'type': 'income'}) ?? [];
+    final expenses = _allExpenses[key]?.map((e) => {...e, 'type': 'expense'}).toList() ?? [];
+    final incomes = _allIncomes[key]?.map((i) => {...i, 'type': 'income'}).toList() ?? [];
     
     final combined = [...expenses, ...incomes];
+    combined.sort((a, b) {
+      final timeA = a['time'] as String;
+      final timeB = b['time'] as String;
+      return timeA.compareTo(timeB);
+    });
     return combined;
   }
   
@@ -165,14 +229,6 @@ class _BudgetPageState extends State<BudgetPage> {
       total += (transaction['amount'] as num?)?.toDouble() ?? 0.0;
     }
     return total;
-  }
-
-  PeriodSummary _calculateDailyTotals(DateTime day) {
-    final key = DateFormat('yyyy-MM-dd').format(day);
-    return PeriodSummary(
-      income: _sumTransactions(_allIncomes[key]),
-      expense: _sumTransactions(_allExpenses[key]),
-    );
   }
 
   PeriodSummary _calculateWeeklyTotals(DateTime focusedDay) {
@@ -223,9 +279,11 @@ class _BudgetPageState extends State<BudgetPage> {
     return PeriodSummary(income: incomeTotal, expense: expenseTotal);
   }
   
-  double _calculateExpenseTotalForMarker(DateTime day) {
+  double _calculateDailyBalanceForMarker(DateTime day) {
     final key = DateFormat('yyyy-MM-dd').format(day);
-    return _sumTransactions(_allExpenses[key]);
+    final expenses = _sumTransactions(_allExpenses[key]);
+    final incomes = _sumTransactions(_allIncomes[key]);
+    return incomes - expenses; // Positive means we earned more than spent
   }
 
   // --- UI BUILDER METHODS ---
@@ -261,7 +319,8 @@ class _BudgetPageState extends State<BudgetPage> {
                         itemCount: dailyTransactions.length,
                         itemBuilder: (context, index) {
                           final transaction = dailyTransactions[index];
-                          return _buildTransactionTile(transaction, index);
+                          final isExpense = transaction['type'] == 'expense';
+                          return _buildTransactionTile(transaction, index, isExpense);
                         },
                       ),
               ),
@@ -281,7 +340,6 @@ class _BudgetPageState extends State<BudgetPage> {
   }
   
   Widget _buildSummaryCards() {
-    final todayTotals = _calculateDailyTotals(DateTime.now());
     final weekTotals = _calculateWeeklyTotals(_focusedDay);
     final monthTotals = _calculateMonthlyTotals(_focusedDay);
     final loc = AppLocalizations.of(context);
@@ -290,8 +348,6 @@ class _BudgetPageState extends State<BudgetPage> {
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
-          Expanded(child: _summaryCardItem(loc.t('today'), todayTotals)),
-          const SizedBox(width: 12),
           Expanded(child: _summaryCardItem(loc.t('thisWeek'), weekTotals)),
           const SizedBox(width: 12),
           Expanded(child: _summaryCardItem(loc.t('thisMonth'), monthTotals)),
@@ -348,37 +404,128 @@ class _BudgetPageState extends State<BudgetPage> {
     );
   }
   
-  Widget _buildTransactionTile(Map<String, dynamic> transaction, int index) {
+  int _getActualIndex(DateTime date, bool isExpense, int combinedIndex) {
+    final key = DateFormat('yyyy-MM-dd').format(date);
+    final dailyExpenses = _allExpenses[key]?.length ?? 0;
+    final dailyIncomes = _allIncomes[key]?.length ?? 0;
+    
+    if (isExpense) {
+      // If it's an expense, we just need to make sure the index is within expenses
+      if (combinedIndex < dailyExpenses) {
+        return combinedIndex;
+      }
+    } else {
+      // If it's an income, we need to adjust the index by subtracting the number of expenses
+      if (combinedIndex >= dailyExpenses && combinedIndex < (dailyExpenses + dailyIncomes)) {
+        return combinedIndex - dailyExpenses;
+      }
+    }
+    return -1; // Invalid index
+  }
+
+  Widget _buildTransactionTile(Map<String, dynamic> transaction, int index, bool isExpense) {
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final currencySymbol = currencyProvider.currencySymbol;
     final loc = AppLocalizations.of(context);
 
-    final bool isExpense = transaction['type'] == 'expense';
     final Color color = isExpense ? Colors.red.shade400 : Colors.green.shade400;
     final IconData icon = isExpense ? Icons.remove : Icons.add;
     final String sign = isExpense ? '-' : '+';
 
+    // Convert time string to TimeOfDay
+    final timeParts = (transaction['time'] as String).split(':');
+    final time = TimeOfDay(
+      hour: int.parse(timeParts[0]),
+      minute: int.parse(timeParts[1]),
+    );
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white),
+      child: Dismissible(
+        key: Key('transaction-$index-${transaction['name']}-${transaction['time']}'),
+        background: Container(
+          color: Theme.of(context).colorScheme.error,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 16.0),
+          child: const Icon(Icons.delete, color: Colors.white),
         ),
-        title: Text(transaction['name'] as String),
-        subtitle: Text(
-          loc.t('budgetCategoryLabel', args: {'category': transaction['category']}),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) => AlertDialog(
+              title: Text(loc.t('confirmDelete')),
+              content: Text(loc.t('confirmDeletePrompt')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(loc.t('cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    loc.t('delete'),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              ],
+            ),
+          ) ?? false;
+        },
+        onDismissed: (direction) {
+          final actualIndex = _getActualIndex(_selectedDay!, isExpense, index);
+          if (actualIndex >= 0) {
+            _deleteTransaction(isExpense, _selectedDay!, actualIndex);
+          }
+        },
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: color,
+            child: Icon(icon, color: Colors.white),
+          ),
+          title: Text(transaction['name'] as String),
+          subtitle: Text(
+            loc.t('budgetCategoryLabel', args: {'category': transaction['category']}),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$sign${NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2).format(transaction['amount'])}',
+                style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+              ),
+            ],
+          ),
+          onTap: () async {
+            await showExpenseInputModal(
+              context,
+              _selectedDay!,
+              (isExpenseArg, savedDate, newName, newAmount, newCategory, newTime) {
+                final actualIndex = _getActualIndex(savedDate, isExpense, index);
+                if (actualIndex >= 0) {
+                  if (newName.isEmpty) {
+                    // Empty name signals deletion
+                    _deleteTransaction(isExpense, savedDate, actualIndex);
+                  } else {
+                    _updateTransaction(isExpense, savedDate, actualIndex, newName, newAmount, newCategory, newTime);
+                  }
+                }
+              },
+              initialExpense: {
+                'name': transaction['name'],
+                'amount': transaction['amount'],
+                'category': transaction['category'],
+                'time': time,
+                'isExpense': isExpense,
+              },
+            );
+          },
         ),
-        trailing: Text(
-          '$sign${NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2).format(transaction['amount'])}',
-          style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
-        ),
-        onTap: isExpense
-            ? () => _showEditDeleteDialog(context, _selectedDay!, index)
-            : null,
       ),
     );
   }
+
+
 
   Widget _buildTableCalendar() {
     final loc = AppLocalizations.of(context);
@@ -420,15 +567,28 @@ class _BudgetPageState extends State<BudgetPage> {
       headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
-          final dailyTotal = _calculateExpenseTotalForMarker(day);
-          if (dailyTotal > 0) {
+          final dailyBalance = _calculateDailyBalanceForMarker(day);
+          if (dailyBalance != 0) {
+            final isPositive = dailyBalance > 0;
+            final color = isPositive ? Colors.green.shade400 : Colors.red.shade400;
+            final sign = isPositive ? '+' : '';
+            
             return Positioned(
               right: 1, bottom: 1,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(color: theme.colorScheme.secondary, borderRadius: BorderRadius.circular(10)),
-                child: Text(NumberFormat.compact().format(dailyTotal),
-                  style: TextStyle(color: theme.colorScheme.onSecondary, fontSize: 8.0, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(10)
+                ),
+                child: Text(
+                  '$sign${NumberFormat.compact().format(dailyBalance)}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 8.0,
+                    fontWeight: FontWeight.bold
+                  ),
+                ),
               ),
             );
           }
@@ -438,66 +598,5 @@ class _BudgetPageState extends State<BudgetPage> {
     );
   }
 
-  void _showEditDeleteDialog(BuildContext context, DateTime date, int transactionIndex) {
-    final loc = AppLocalizations.of(context);
-    final key = DateFormat('yyyy-MM-dd').format(date);
-    final combined = _getCombinedDailyTransactions(date);
-    final targetTransaction = combined[transactionIndex];
-    final originalExpenses = _allExpenses[key] ?? [];
-    final originalIndex = originalExpenses.indexWhere((e) =>
-        e['name'] == targetTransaction['name'] &&
-        e['amount'] == targetTransaction['amount'] &&
-        e['time'] == targetTransaction['time']);
-    
-    if (originalIndex == -1) return;
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(loc.t('action')),
-          content: Text(loc.t('chooseActionPrompt')),
-          actions: <Widget>[
-            TextButton(
-              child: Text(loc.t('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              onPressed: () {
-                Navigator.of(context).pop();
-                showDialog(
-                  context: context,
-                  builder: (BuildContext c) => AlertDialog(
-                    title: Text(loc.t('confirmDelete')),
-                    content: Text(loc.t('confirmDeletePrompt')),
-                    actions: [
-                      TextButton(child: Text(loc.t('cancel')), onPressed: () => Navigator.of(c).pop()),
-                      TextButton(
-                        child: Text(loc.t('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                        onPressed: () {
-                          Navigator.of(c).pop();
-                          _deleteExpense(date, originalIndex);
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            TextButton(
-              child: Text(loc.t('edit')),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                final expenseToEdit = originalExpenses[originalIndex];
-                await showExpenseInputModal(
-                  context, date,
-                  (isExpense, savedDate, newName, newAmount, newCategory, newTime) {
-                    _updateExpense(date, originalIndex, newName, newAmount, newCategory, newTime);
-                  },
-                  initialExpense: expenseToEdit,
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 }

@@ -13,6 +13,7 @@ class AppLocalizations {
     'en': {
       // General
       'appName': 'My Budget Planner',
+      'appTitle': 'My Budget Planner',
       'others': 'Others',
       'save': 'Save',
       'edit': 'Edit',
@@ -21,7 +22,17 @@ class AppLocalizations {
       'action': 'Action',
       'confirmDelete': 'Confirm Delete',
       'confirmDeletePrompt': 'Are you sure you want to delete this item?',
+      'chooseActionPrompt': 'Choose an action',
       'fillAllFields': 'Please fill all fields!',
+      
+      // Common
+      'all': 'All',
+      'income': 'Income',
+      'expenses': 'Expenses',
+      'expense': 'Expense',
+      'allCategories': 'All Categories',
+      'startDate': 'Start Date',
+      'endDate': 'End Date',
 
       // Bottom Navigation
       'navHome': 'Home',
@@ -32,9 +43,13 @@ class AppLocalizations {
 
       // Home Page
       'homeSummaryTitle': 'Summary for {month}',
-      'homeIncome': 'Income',
-      'homeSpent': 'Spent',
-      'homeRemaining': 'Remaining',
+      'homeIncome': 'Current Balance',
+      'homeSpent': 'This Month Spent',
+      'homeRemaining': '{percent}% remaining this month',
+      'homeMonthlyOverview': '{month} Overview',
+      'homeBudgetUsed': 'Budget Used',
+      'homeBudgetFormat': '{spent} / {total}',
+      'homePercentBudget': '{percent}% of budget',
       'homeAddExpense': 'Add Expense',
       'homeViewReports': 'View Reports',
       'homeRecentTransactions': 'Recent Transactions',
@@ -44,10 +59,23 @@ class AppLocalizations {
 
       // Budget Page
       'budgetTotalFor': 'Total for {month}',
-      'budgetSelectDayPrompt': 'Select a day to view or add expenses',
-      'budgetNoExpenseForToday': 'No expense records for today.',
-      'budgetAddExpenseTooltip': 'Add Expense',
+      'budgetSelectDayPrompt': 'Select a day to view or add transactions',
+      'budgetNoTransactionsForDay': 'No transactions for this day',
+      'budgetAddTransactionTooltip': 'Add Transaction',
       'budgetCategoryLabel': 'Category: {category}',
+      'thisWeek': 'This Week',
+      'thisMonth': 'This Month',
+      'today': 'Today',
+
+      // Modal Titles and Labels
+      'modalAddExpense': 'Add Expense',
+      'modalAddIncome': 'Add Income',
+      'lunchAtSubway': 'Lunch at Subway',
+      'monthlySalary': 'Monthly Salary',
+      'addNewCategory': 'Add New Category',
+      'categoryNameEnglish': 'Category Name (English)',
+      'categoryNameEnglishHelper': 'Please enter the name in English',
+      'categoryNameEnglishOnly': 'Please use English characters only',
 
       // Planning Page
       'planningTotalIncome': 'Total Income',
@@ -103,6 +131,9 @@ class AppLocalizations {
       'settingThemeDark': 'Dark',
       'settingLanguage': 'Language',
       'settingCurrency': 'Currency',
+      'currencyMMK': 'Myanmar Kyat (MMK)',
+      'currencyUSD': 'US Dollar (\$)',
+      'currencyKRW': 'Korean Won (₩)',
 
       // Expense Input Modal
       'modalEditExpense': 'Edit Expense',
@@ -110,12 +141,16 @@ class AppLocalizations {
       'modalExpenseName': 'Expense Name',
       'modalAmount': 'Amount ({currency})',
       'modalCategory': 'Category',
+      'modalTimeOptional': 'Time (Optional)',
       'modalSaveChanges': 'Save Changes',
       'modalSaveExpense': 'Save Expense',
+
+      'modalSave': 'Save'
     },
     'my': {
       // General
       'appName': 'ငွေကြေးစီမံသူ',
+      'appTitle': 'ငွေကြေးစီမံသူ',
       'others': 'အခြား',
       'save': 'သိမ်းမည်',
       'edit': 'ပြင်မည်',
@@ -124,7 +159,17 @@ class AppLocalizations {
       'action': 'လုပ်ဆောင်ချက်',
       'confirmDelete': 'ဖျက်ရန် အတည်ပြုပါ',
       'confirmDeletePrompt': 'ဤအချက်အလက်ကို ဖျက်မှာသေချာပါသလား?',
+      'chooseActionPrompt': 'လုပ်ဆောင်ရန် ရွေးချယ်ပါ',
       'fillAllFields': 'အကွက်အားလုံးကို ဖြည့်စွက်ပါ!',
+
+      // Common
+      'all': 'အားလုံး',
+      'income': 'ဝင်ငွေ',
+      'expenses': 'သုံးစွဲငွေများ',
+      'expense': 'အသုံးစရိတ်',
+      'allCategories': 'ကဏ္ဍအားလုံး',
+      'startDate': 'စတင်သည့်ရက်',
+      'endDate': 'ပြီးဆုံးသည့်ရက်',
 
       // Bottom Navigation
       'navHome': 'ပင်မ',
@@ -135,9 +180,13 @@ class AppLocalizations {
 
       // Home Page
       'homeSummaryTitle': '{month} အတွက် အကျဉ်းချုပ်',
-      'homeIncome': 'ဝင်ငွေ',
-      'homeSpent': 'သုံးငွေ',
-      'homeRemaining': 'လက်ကျန်',
+      'homeIncome': 'လက်ရှိလက်ကျန်ငွေ',
+      'homeSpent': 'ယခုလအတွက် သုံးငွေ',
+      'homeRemaining': 'ယခုလအတွက် {percent}% ကျန်ရှိသည်',
+      'homeMonthlyOverview': '{month} ခြုံငုံသုံးသပ်ချက်',
+      'homeBudgetUsed': 'သုံးစွဲပြီးသော ဘတ်ဂျက်',
+      'homeBudgetFormat': '{spent} / {total}',
+      'homePercentBudget': 'ဘတ်ဂျက်၏ {percent}%',
       'homeAddExpense': 'ကုန်ကျစရိတ်ထည့်မည်',
       'homeViewReports': 'မှတ်တမ်းကြည့်မည်',
       'homeRecentTransactions': 'မကြာမီက သုံးစွဲမှုများ',
@@ -147,10 +196,24 @@ class AppLocalizations {
 
       // Budget Page
       'budgetTotalFor': '{month} စုစုပေါင်း',
-      'budgetSelectDayPrompt': 'ကုန်ကျစရိတ်ကြည့်ရန် (သို့) ထည့်ရန် နေ့ရက်ရွေးပါ',
-      'budgetNoExpenseForToday': 'ယနေ့အတွက် ကုန်ကျစရိတ် မှတ်တမ်းမရှိပါ',
-      'budgetAddExpenseTooltip': 'ကုန်ကျစရိတ်ထည့်မည်',
+      'budgetSelectDayPrompt': 'ငွေစာရင်းကြည့်ရန် (သို့) ထည့်ရန် နေ့ရက်ရွေးပါ',
+      'budgetNoTransactionsForDay': 'ဤနေ့အတွက် ငွေစာရင်းမှတ်တမ်းမရှိပါ',
+      'budgetAddTransactionTooltip': 'ငွေစာရင်းထည့်မည်',
       'budgetCategoryLabel': 'ကဏ္ဍ: {category}',
+      'thisWeek': 'ယခုအပတ်',
+      'thisMonth': 'ယခုလ',
+      'today': 'ယနေ့',
+
+      // Modal Titles and Labels
+      'modalAddExpense': 'အသုံးစရိတ်ထည့်ရန်',
+      'modalAddIncome': 'ဝင်ငွေထည့်ရန်',
+      'lunchAtSubway': 'နေ့လည်စာ',
+      'monthlySalary': 'လစာ',
+      'addNewCategory': 'အမျိုးအစား အသစ်ထည့်ရန်',
+      'categoryNameEnglish': 'အမျိုးအစား အမည် (အင်္ဂလိပ်လိုသာ)',
+      'categoryNameEnglishHelper': 'အင်္ဂလိပ်စာလုံးဖြင့်သာ ရေးပါ',
+      'categoryNameEnglishOnly': 'အင်္ဂလိပ်စာလုံးဖြင့်သာ ရိုက်ထည့်ပါ',
+      'selectIcon': 'သင်္ကေတ ရွေးပါ',
 
       // Planning Page
       'planningTotalIncome': 'စုစုပေါင်း ဝင်ငွေ',
@@ -206,6 +269,9 @@ class AppLocalizations {
       'settingThemeDark': 'အမှောင်',
       'settingLanguage': 'ဘာသာစကား',
       'settingCurrency': 'ငွေကြေး',
+      'currencyMMK': 'မြန်မာကျပ် (MMK)',
+      'currencyUSD': 'အမေရိကန်ဒေါ်လာ (\$)',
+      'currencyKRW': 'ကိုရီးယားဝမ် (₩)',
 
       // Expense Input Modal
       'modalEditExpense': 'ကုန်ကျစရိတ် ပြင်ဆင်ရန်',
@@ -213,8 +279,10 @@ class AppLocalizations {
       'modalExpenseName': 'ကုန်ကျစရိတ်အမည်',
       'modalAmount': 'ပမာဏ ({currency})',
       'modalCategory': 'ကဏ္ဍ',
+      'modalTimeOptional': 'အချိန် (ထည့်လိုလျှင်)',
       'modalSaveChanges': 'အပြောင်းအလဲကို သိမ်းဆည်းမည်',
       'modalSaveExpense': 'ကုန်ကျစရိတ် သိမ်းဆည်းမည်',
+      'modalSave': 'သိမ်းမည်',
     }
   };
 

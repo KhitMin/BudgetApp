@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -221,22 +220,96 @@ class _ExpenseInputSheetState extends State<ExpenseInputSheet> {
             const SizedBox(height: 12),
             _buildTimePicker(),
             const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _handleSave,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(
-                  _isEditing ? loc.t('modalSaveChanges') : loc.t('modalSave'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            if (_isEditing)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext context) => AlertDialog(
+                            title: Text(loc.t('confirmDelete')),
+                            content: Text(loc.t('confirmDeletePrompt')),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: Text(loc.t('cancel')),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.error,
+                                  foregroundColor: colorScheme.onError,
+                                ),
+                                child: Text(loc.t('delete')),
+                              ),
+                            ],
+                          ),
+                        ) ?? false;
+
+                        if (confirmed && context.mounted) {
+                          widget.onSave(
+                            widget.initialExpense!['isExpense'],
+                            widget.day,
+                            '', // empty name signals deletion
+                            0, // amount doesn't matter for deletion
+                            '', // category doesn't matter for deletion
+                            TimeOfDay.now(), // time doesn't matter for deletion
+                          );
+                          Navigator.pop(context);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        backgroundColor: colorScheme.errorContainer,
+                        foregroundColor: colorScheme.onErrorContainer,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.delete),
+                      label: Text(
+                        loc.t('delete'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _handleSave,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.save),
+                      label: Text(
+                        loc.t('modalSaveChanges'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _handleSave,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.save),
+                  label: Text(
+                    loc.t('modalSave'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -437,6 +510,7 @@ class AddCategoryDialog extends StatefulWidget {
 class _AddCategoryDialogState extends State<AddCategoryDialog> {
   final _nameController = TextEditingController();
   IconData _selectedIcon = Icons.star_rounded;
+  String? _errorText;
 
   final List<IconData> _availableIcons = [
     Icons.star_rounded, Icons.card_giftcard_rounded, Icons.local_cafe_rounded,
@@ -445,22 +519,42 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
     Icons.build_rounded, Icons.phone_android_rounded, Icons.devices_other_rounded,
   ];
 
+  // Function to check if text contains only English characters and spaces
+  bool _isEnglishOnly(String text) {
+    final englishRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+    return englishRegex.hasMatch(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final loc = AppLocalizations.of(context);
     
     return AlertDialog(
-      title: const Text('Add New Category'),
+      title: Text(loc.t('addNewCategory')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Category Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: loc.t('categoryNameEnglish'),
+                helperText: loc.t('categoryNameEnglishHelper'),
+                errorText: _errorText,
+                border: const OutlineInputBorder(),
               ),
+              onChanged: (value) {
+                setState(() {
+                  if (value.isEmpty) {
+                    _errorText = null;
+                  } else if (!_isEnglishOnly(value)) {
+                    _errorText = loc.t('categoryNameEnglishOnly');
+                  } else {
+                    _errorText = null;
+                  }
+                });
+              },
             ),
             const SizedBox(height: 20),
             Wrap(
@@ -488,16 +582,21 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(loc.t('cancel')),
         ),
         ElevatedButton(
           onPressed: () {
-            if (_nameController.text.isNotEmpty) {
-              final newCategory = Category(name: _nameController.text, icon: _selectedIcon);
+            final name = _nameController.text.trim();
+            if (name.isNotEmpty && _isEnglishOnly(name)) {
+              final newCategory = Category(name: name, icon: _selectedIcon);
               Navigator.pop(context, newCategory);
+            } else if (!_isEnglishOnly(name)) {
+              setState(() {
+                _errorText = loc.t('categoryNameEnglishOnly');
+              });
             }
           },
-          child: const Text('Save'),
+          child: Text(loc.t('save')),
         ),
       ],
     );
