@@ -73,23 +73,22 @@ class _NotificationsModalState extends State<NotificationsModal> {
         final expense = PlannedExpense.fromJson(expenseJson as Map<String, dynamic>);
 
         if (expense.isRecurring) {
-          int dayOfBill = expense.dueDate.day;
-          DateTime upcomingDate = DateTime(now.year, now.month, dayOfBill);
+          // Always set the date to current month for recurring expenses
+          if (expense.dueDate.year == now.year && expense.dueDate.month == now.month) {
 
-          if (upcomingDate.isBefore(now)) {
-            upcomingDate = DateTime(now.year, now.month + 1, dayOfBill);
+            // Only show if it's in the current month and not overdue
+            if (!expense.dueDate.isBefore(now)) {
+              upcoming.add(PlannedExpense(
+                name: expense.name,
+                amount: expense.amount,
+                dueDate: expense.dueDate,
+                isRecurring: expense.isRecurring,
+              ));
+            }
           }
-          
-          upcoming.add(PlannedExpense(
-            name: expense.name,
-            amount: expense.amount,
-            dueDate: upcomingDate,
-            isRecurring: expense.isRecurring,
-          ));
         } else {
-          if (expense.dueDate.isAfter(now) &&
-              expense.dueDate.month == now.month &&
-              expense.dueDate.year == now.year) {
+          // For non-recurring, only show if it's in the future
+          if (!expense.dueDate.isBefore(now)) {
             upcoming.add(expense);
           }
         }
@@ -167,29 +166,34 @@ class _NotificationsModalState extends State<NotificationsModal> {
               },
             )
           else
-            // The list of bills
-            ..._upcomingBills.map((bill) {
-              return ListTile(
-                leading: const Icon(Icons.receipt_long_rounded),
-                title: Text(bill.name),
-                subtitle: Builder(
-                  builder: (context) => Text(_getDueDateSubtitle(context, bill.dueDate)),
-                ),
-                trailing: Builder(
-                  builder: (context) {
-                    final localizations = AppLocalizations.of(context);
-                    final key = 'currencyDisplayDefault';
-                    return Text(
-                      localizations.t(key, args: {
-                        'amount': bill.amount.toStringAsFixed(0),
-                        'currency': _selectedCurrency,
-                      }),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: _upcomingBills.map((bill) {
+                    return ListTile(
+                      leading: const Icon(Icons.receipt_long_rounded),
+                      title: Text(bill.name),
+                      subtitle: Builder(
+                        builder: (context) => Text(_getDueDateSubtitle(context, bill.dueDate)),
+                      ),
+                      trailing: Builder(
+                        builder: (context) {
+                          final localizations = AppLocalizations.of(context);
+                          final key = 'currencyDisplayDefault';
+                          return Text(
+                            localizations.t(key, args: {
+                              'amount': bill.amount.toStringAsFixed(0),
+                              'currency': _selectedCurrency,
+                            }),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          );
+                        },
+                      ),
                     );
-                  },
+                  }).toList(),
                 ),
-              );
-            }),
+              ),
+            ),
         ],
       ),
     );

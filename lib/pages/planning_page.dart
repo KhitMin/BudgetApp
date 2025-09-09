@@ -88,14 +88,36 @@ class _PlanningPageState extends State<PlanningPage> {
       'date': date.toIso8601String(),
       'isRecurring': isRecurring,
     };
-    final monthKey = DateFormat('yyyy-MM').format(date);
-    setState(() {
-      if (isExpense) {
-        _allPlannedExpenses.putIfAbsent(monthKey, () => []).add(newItem);
-      } else {
-        _allPlannedIncomes.putIfAbsent(monthKey, () => []).add(newItem);
+    
+    // If it's a recurring item, add it to all future months for the next 12 months
+    if (isRecurring) {
+      for (int i = 0; i < 12; i++) {
+        final futureDate = DateTime(date.year, date.month + i, date.day);
+        final monthKey = DateFormat('yyyy-MM').format(futureDate);
+        final futureItem = {
+          ...newItem,
+          'date': futureDate.toIso8601String(),
+        };
+        
+        setState(() {
+          if (isExpense) {
+            _allPlannedExpenses.putIfAbsent(monthKey, () => []).add(futureItem);
+          } else {
+            _allPlannedIncomes.putIfAbsent(monthKey, () => []).add(futureItem);
+          }
+        });
       }
-    });
+    } else {
+      // Non-recurring item: just add to the selected month
+      final monthKey = DateFormat('yyyy-MM').format(date);
+      setState(() {
+        if (isExpense) {
+          _allPlannedExpenses.putIfAbsent(monthKey, () => []).add(newItem);
+        } else {
+          _allPlannedIncomes.putIfAbsent(monthKey, () => []).add(newItem);
+        }
+      });
+    }
     _saveAllData();
   }
 
@@ -116,10 +138,26 @@ class _PlanningPageState extends State<PlanningPage> {
       'date': date.toIso8601String(),
       'isRecurring': isRecurring,
     };
-    final oldMonthKey =
-        DateFormat('yyyy-MM').format(DateTime.parse(oldItem['date']));
-    final newMonthKey = DateFormat('yyyy-MM').format(date);
-    setState(() {
+
+    // First, remove all instances of the old recurring item if it was recurring
+    if (oldItem['isRecurring'] == true) {
+      final oldName = oldItem['name'];
+      if (wasExpense) {
+        _allPlannedExpenses.forEach((key, items) {
+          items.removeWhere((item) => 
+            item['name'] == oldName && 
+            item['isRecurring'] == true);
+        });
+      } else {
+        _allPlannedIncomes.forEach((key, items) {
+          items.removeWhere((item) => 
+            item['name'] == oldName && 
+            item['isRecurring'] == true);
+        });
+      }
+    } else {
+      // Just remove the single non-recurring item
+      final oldMonthKey = DateFormat('yyyy-MM').format(DateTime.parse(oldItem['date']));
       if (wasExpense) {
         _allPlannedExpenses[oldMonthKey]?.removeWhere((item) =>
             item['date'] == oldItem['date'] && item['name'] == oldItem['name']);
@@ -127,12 +165,38 @@ class _PlanningPageState extends State<PlanningPage> {
         _allPlannedIncomes[oldMonthKey]?.removeWhere((item) =>
             item['date'] == oldItem['date'] && item['name'] == oldItem['name']);
       }
-      if (isExpense) {
-        _allPlannedExpenses.putIfAbsent(newMonthKey, () => []).add(updatedItem);
-      } else {
-        _allPlannedIncomes.putIfAbsent(newMonthKey, () => []).add(updatedItem);
+    }
+
+    // Now add the updated item(s)
+    if (isRecurring) {
+      // Add for the next 12 months
+      for (int i = 0; i < 12; i++) {
+        final futureDate = DateTime(date.year, date.month + i, date.day);
+        final monthKey = DateFormat('yyyy-MM').format(futureDate);
+        final futureItem = {
+          ...updatedItem,
+          'date': futureDate.toIso8601String(),
+        };
+        
+        setState(() {
+          if (isExpense) {
+            _allPlannedExpenses.putIfAbsent(monthKey, () => []).add(futureItem);
+          } else {
+            _allPlannedIncomes.putIfAbsent(monthKey, () => []).add(futureItem);
+          }
+        });
       }
-    });
+    } else {
+      // Non-recurring: just add to the selected month
+      final newMonthKey = DateFormat('yyyy-MM').format(date);
+      setState(() {
+        if (isExpense) {
+          _allPlannedExpenses.putIfAbsent(newMonthKey, () => []).add(updatedItem);
+        } else {
+          _allPlannedIncomes.putIfAbsent(newMonthKey, () => []).add(updatedItem);
+        }
+      });
+    }
     _saveAllData();
   }
 

@@ -146,8 +146,8 @@ class _MainScreenState extends State<MainScreen> {
             label: loc.t('navReporting'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            label: loc.t('navSetting'),
+            icon: Icon(Icons.receipt_long_outlined),
+            label: loc.t('navRecords'),
           ),
         ],
         currentIndex: _selectedIndex,

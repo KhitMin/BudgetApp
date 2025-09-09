@@ -127,7 +127,7 @@ class _WeeklyReportViewState extends State<WeeklyReportView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.t('reportWeekly'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(loc.t('reportWeeklyExpenseByCategory'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             SizedBox(height: 250, child: _buildPieChart(context, widget.weeklyCategoryExpenses)),
             const SizedBox(height: 20),

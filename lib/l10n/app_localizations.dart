@@ -15,7 +15,7 @@ class AppLocalizations {
       'appName': 'My Budget Planner',
       'helloMessage': 'Hello, Welcome! 👋',
       'currencyDisplayDefault': '{amount} {currency}',
-      'upcomingBills': 'Upcoming Bills',
+      'upcomingBills': 'Upcoming Bills for this month',
       'noUpcomingBills': 'You have no upcoming bills. ✨',
       'overdue': 'Overdue',
       'dueToday': 'Due today',
@@ -41,13 +41,17 @@ class AppLocalizations {
       'allCategories': 'All Categories',
       'startDate': 'Start Date',
       'endDate': 'End Date',
+      'remaining': 'Remaining',
+      'lastWeek': 'Last Week',
+      'lastMonth': 'Last Month',
+      'lastYear': 'Last Year',
 
       // Bottom Navigation
       'navHome': 'Home',
       'navBudget': 'Expenses',
       'navPlanning': 'Planning',
       'navReporting': 'Reporting',
-      'navSetting': 'Setting',
+      'navRecords': 'Records',
 
       // Home Page
       'homeSummaryTitle': 'Summary for {month}',
@@ -89,7 +93,13 @@ class AppLocalizations {
       'categoryNameEnglishOnly': 'Please use English characters only',
 
       // Planning Page
+      'planningStart': 'Start Planning',
+      'expensePlanning': 'Expense Planning',
       'planningTotalIncome': 'Total Income',
+      'modalEditTransaction': 'Edit Transaction',
+      'planningIsMonthlyRecurringLabel': 'Is this monthly recurring?',
+      'modalAddTransaction': 'Add Transaction',
+      'planningDateLabel': 'Date',
       'planningPlannedBudget': 'Planned Budget',
       'planningRemainingBalance': 'Remaining Balance',
       'planningOverspending': 'Overspending',
@@ -120,11 +130,12 @@ class AppLocalizations {
 
       // Reporting Page
       'reportTitle': 'Reports',
-      'reportWeekly': 'Weekly Expense by Category',
+      'reportWeekly': 'Weekly',
       'reportMonthly': 'Monthly',
       'reportYearly': 'Yearly',
       'reportNoData': 'No data for this period.',
       'reportTotalSpend': 'Total Spend',
+      'reportWeeklyExpenseByCategory': 'Weekly Expense by Category',
       'reportMonthlyExpensesByCategory': 'Monthly Expenses by Category',
       'reportPlanningVsActual': 'Planning vs Actual Spending',
       'reportYearlySummary': 'Yearly Financial Summary',
@@ -133,6 +144,14 @@ class AppLocalizations {
       'reportYearlyExpensesByCategory': 'Expenses by Category (Yearly)',
       'reportPlanned': 'Planned',
       'reportActual': 'Actual',
+
+      // Records Page
+      'dateRange': 'Date Range',
+      'transactionType': 'Transaction Type',
+      'category': 'Category',
+      'applyFilters': 'Apply Filters',
+      'transactionsFound': '{count} transactions found',
+      'sortBy': 'Sort by Date',
 
       // Setting Page
       'settingTitle': 'Setting',
@@ -163,7 +182,7 @@ class AppLocalizations {
       'appName': 'ငွေကြေးစီမံသူ',
       'helloMessage': 'မင်္ဂလာပါ 👋',
       'currencyDisplayDefault': '{amount} {currency}',
-      'upcomingBills': 'ပေးရန်ရှိသောငွေများ',
+      'upcomingBills': 'ယခုလအတွက် ပေးရန်ရှိသောငွေများ',
       'noUpcomingBills': 'ပေးရန်ရှိသောငွေ မရှိသေးပါ။ ✨',
       'overdue': 'ရက်လွန်',
       'dueToday': 'ယနေ့ပေးရန်ရှိ',
@@ -184,18 +203,23 @@ class AppLocalizations {
       // Common
       'all': 'အားလုံး',
       'income': 'ဝင်ငွေ',
-      'expenses': 'သုံးစွဲငွေများ',
+      'expenses': 'သုံးစွဲငွေ',
       'expense': 'အသုံးစရိတ်',
       'allCategories': 'ကဏ္ဍအားလုံး',
       'startDate': 'စတင်သည့်ရက်',
       'endDate': 'ပြီးဆုံးသည့်ရက်',
+      'remaining': 'ကျန်ရှိငွေ',
+      'lastWeek': 'ပြီးခဲ့သောအပတ်',
+      'lastMonth': 'ပြီးခဲ့သောလ',
+      'lastYear': 'ပြီးခဲ့သောနှစ်',
+
 
       // Bottom Navigation
       'navHome': 'ပင်မ',
-      'navBudget': 'ထွက်ငွေ',
+      'navBudget': 'ဝင်ထွက်ငွေ',
       'navPlanning': 'အစီအစဉ်',
-      'navReporting': 'မှတ်တမ်း',
-      'navSetting': 'ဆက်တင်',
+      'navReporting': 'သုံးသပ်ချက်',
+      'navRecords': 'မှတ်တမ်း',
 
       // Home Page
       'homeSummaryTitle': '{month} အတွက် အကျဉ်းချုပ်',
@@ -238,6 +262,12 @@ class AppLocalizations {
       'selectIcon': 'သင်္ကေတ ရွေးပါ',
 
       // Planning Page
+      'planningStart': 'အစီအစဉ် စတင်ရန်',
+      'expensePlanning': 'အသုံးစရိတ်အစီအစဉ်',
+      'modalAddTransaction': 'ငွေစာရင်းထည့်ရန်',
+      'modalEditTransaction': 'ငွေစာရင်း ပြင်ဆင်ရန်',
+      'planningIsMonthlyRecurringLabel': 'လစဉ် ဝင်ထွက်ငွေ?',
+      'planningDateLabel': 'ရက်စွဲ',
       'planningTotalIncome': 'စုစုပေါင်း ဝင်ငွေ',
       'planningPlannedBudget': 'စီစဉ်ထားသော အသုံးစရိတ်',
       'planningRemainingBalance': 'လက်ကျန်ငွေ',
@@ -274,6 +304,7 @@ class AppLocalizations {
       'reportYearly': 'နှစ်စဉ်',
       'reportNoData': 'ဤကာလအတွက် မှတ်တမ်းမရှိပါ',
       'reportTotalSpend': 'စုစုပေါင်း အသုံးစရိတ်',
+      'reportWeeklyExpenseByCategory':   'အပတ်စဉ် ကုန်ကျစရိတ် (ကဏ္ဍအလိုက်)',
       'reportMonthlyExpensesByCategory': 'လစဉ် ကုန်ကျစရိတ် (ကဏ္ဍအလိုက်)',
       'reportPlanningVsActual': 'အစီအစဉ် နှင့် အမှန်တကယ် သုံးစွဲမှု',
       'reportYearlySummary': 'နှစ်စဉ် ငွေကြေးအကျဉ်းချုပ်',
@@ -282,6 +313,14 @@ class AppLocalizations {
       'reportYearlyExpensesByCategory': 'နှစ်စဉ် ကုန်ကျစရိတ် (ကဏ္ဍအလိုက်)',
       'reportPlanned': 'စီစဉ်ထား',
       'reportActual': 'အမှန်တကယ်',
+
+      // Records Page
+      'dateRange': 'ရက်စွဲ အပိုင်းအခြား',
+      'transactionType': 'ငွေကြေး အမျိုးအစား',
+      'category': 'အမျိုးအစား',
+      'applyFilters': 'စစ်ထုတ်မည်',
+      'transactionsFound': '{count}ခု တွေ့ရှိသည်',
+      'sortBy': 'ရက်စွဲဖြင့်စီမည်',
 
       // Setting Page
       'settingTitle': 'ဆက်တင်',

@@ -32,21 +32,9 @@ class SummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     // --- Calculation ---
-    final double percentageChange = previousAmount == 0 
-        ? 0.0 
-        : ((currentAmount - previousAmount) / previousAmount);
     
-    final bool isPositive = percentageChange >= 0;
-    // For expenses, a positive change is bad (red). For others, it's good (green).
-    final bool isPositiveGood = title != loc.t('expenses'); 
-    
-    final Color percentColor = (isPositive && isPositiveGood) || (!isPositive && !isPositiveGood)
-      ? Colors.green
-      : Colors.red;
-
     // --- Formatting ---
     final numberFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
-    final percentFormat = NumberFormat.decimalPercentPattern(decimalDigits: 1);
 
     return Card(
       elevation: 0,
@@ -72,11 +60,6 @@ class SummaryCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(title, style: theme.textTheme.titleMedium),
                 const Spacer(),
-                if (previousAmount != 0)
-                  Text(
-                    percentFormat.format(percentageChange),
-                    style: theme.textTheme.bodyMedium?.copyWith(color: percentColor, fontWeight: FontWeight.bold),
-                  )
               ],
             ),
             const SizedBox(height: 12),
