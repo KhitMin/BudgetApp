@@ -69,6 +69,12 @@ class _PlanningPageState extends State<PlanningPage> {
     final currentExpenses = _allPlannedExpenses[currentMonthKey] ?? [];
     _totalPlannedExpenses =
         currentExpenses.fold(0.0, (sum, item) => sum + (item['amount'] as num));
+    
+    // Save the total planned expenses as monthly budget
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setDouble('monthly_budget', _totalPlannedExpenses);
+    });
+    
     if (mounted) setState(() {});
   }
 

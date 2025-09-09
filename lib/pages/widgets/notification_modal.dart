@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/l10n/app_localizations.dart';
 
 // The PlannedExpense class remains the same
 class PlannedExpense {
@@ -38,6 +39,7 @@ class _NotificationsModalState extends State<NotificationsModal> {
   List<PlannedExpense> _upcomingBills = [];
   // State variable to track the loading process
   bool _isLoading = true;
+  String _selectedCurrency = 'MMK';  // Default currency
 
   @override
   void initState() {
@@ -51,6 +53,11 @@ class _NotificationsModalState extends State<NotificationsModal> {
     // 1. Fetch from storage
     final prefs = await SharedPreferences.getInstance();
     final String? expensesString = prefs.getString('planned_expenses');
+    final String currency = prefs.getString('selectedCurrency') ?? 'MMK';
+    
+    setState(() {
+      _selectedCurrency = currency;
+    });
 
     Map<String, dynamic> expensesData = {};
     if (expensesString != null && expensesString.isNotEmpty) {
@@ -98,17 +105,23 @@ class _NotificationsModalState extends State<NotificationsModal> {
     });
   }
 
-  String _getDueDateSubtitle(DateTime dueDate) {
+  String _getDueDateSubtitle(BuildContext context, DateTime dueDate) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
     final difference = dueDay.difference(today).inDays;
 
-    if (difference < 0) return 'Overdue';
-    if (difference == 0) return 'Due today';
-    if (difference == 1) return 'Due tomorrow';
+    final localizations = AppLocalizations.of(context);
+
+    if (difference < 0) return localizations.t('overdue');
+    if (difference == 0) return localizations.t('dueToday');
+    if (difference == 1) return localizations.t('dueTomorrow');
     
-    return 'Due in $difference days (${dueDate.month}/${dueDate.day})';
+    return localizations.t('dueInDays', args: {
+      'days': difference.toString(),
+      'month': dueDate.month.toString(),
+      'day': dueDate.day.toString(),
+    });
   }
 
   @override
@@ -119,9 +132,14 @@ class _NotificationsModalState extends State<NotificationsModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Upcoming Bills',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          Builder(
+            builder: (context) {
+              final localizations = AppLocalizations.of(context);
+              return Text(
+                localizations.t('upcomingBills'),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              );
+            },
           ),
           const SizedBox(height: 16),
           
@@ -134,14 +152,19 @@ class _NotificationsModalState extends State<NotificationsModal> {
               ),
             )
           else if (_upcomingBills.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.0),
-                child: Text(
-                  'You have no upcoming bills. ✨',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ),
+            Builder(
+              builder: (context) {
+                final localizations = AppLocalizations.of(context);
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Text(
+                      localizations.t('noUpcomingBills'),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                );
+              },
             )
           else
             // The list of bills
@@ -149,10 +172,21 @@ class _NotificationsModalState extends State<NotificationsModal> {
               return ListTile(
                 leading: const Icon(Icons.receipt_long_rounded),
                 title: Text(bill.name),
-                subtitle: Text(_getDueDateSubtitle(bill.dueDate)),
-                trailing: Text(
-                  '\$${bill.amount.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                subtitle: Builder(
+                  builder: (context) => Text(_getDueDateSubtitle(context, bill.dueDate)),
+                ),
+                trailing: Builder(
+                  builder: (context) {
+                    final localizations = AppLocalizations.of(context);
+                    final key = 'currencyDisplayDefault';
+                    return Text(
+                      localizations.t(key, args: {
+                        'amount': bill.amount.toStringAsFixed(0),
+                        'currency': _selectedCurrency,
+                      }),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    );
+                  },
                 ),
               );
             }),

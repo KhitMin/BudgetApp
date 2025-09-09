@@ -9,14 +9,14 @@ class EditTransactionDialog extends StatefulWidget {
   final Function(String name, double amount, String category, TimeOfDay time) onSave;
 
   const EditTransactionDialog({
-    Key? key,
+    super.key,
     required this.isExpense,
     required this.name,
     required this.amount,
     required this.category,
     required this.time,
     required this.onSave,
-  }) : super(key: key);
+  });
 
   @override
   _EditTransactionDialogState createState() => _EditTransactionDialogState();

@@ -13,6 +13,14 @@ class AppLocalizations {
     'en': {
       // General
       'appName': 'My Budget Planner',
+      'helloMessage': 'Hello, Welcome! 👋',
+      'currencyDisplayDefault': '{amount} {currency}',
+      'upcomingBills': 'Upcoming Bills',
+      'noUpcomingBills': 'You have no upcoming bills. ✨',
+      'overdue': 'Overdue',
+      'dueToday': 'Due today',
+      'dueTomorrow': 'Due tomorrow',
+      'dueInDays': 'Due in {days} days ({month}/{day})',
       'appTitle': 'My Budget Planner',
       'others': 'Others',
       'save': 'Save',
@@ -43,10 +51,13 @@ class AppLocalizations {
 
       // Home Page
       'homeSummaryTitle': 'Summary for {month}',
-      'homeIncome': 'Current Balance',
-      'homeSpent': 'This Month Spent',
+      'homeIncome': 'This Month Balance',
+      'homeSpent': 'Spent',
       'homeRemaining': '{percent}% remaining this month',
-      'homeMonthlyOverview': '{month} Overview',
+      'homeCurrent': 'This Month',
+      'homeBalance': 'Balance',
+      'homeThisMonth': 'This Month',
+      'homeMonthlyOverview': 'This Month Spent / Budget',
       'homeBudgetUsed': 'Budget Used',
       'homeBudgetFormat': '{spent} / {total}',
       'homePercentBudget': '{percent}% of budget',
@@ -144,12 +155,20 @@ class AppLocalizations {
       'modalTimeOptional': 'Time (Optional)',
       'modalSaveChanges': 'Save Changes',
       'modalSaveExpense': 'Save Expense',
-
+      'modalAmountLabel': 'Amount',
       'modalSave': 'Save'
     },
     'my': {
       // General
       'appName': 'ငွေကြေးစီမံသူ',
+      'helloMessage': 'မင်္ဂလာပါ 👋',
+      'currencyDisplayDefault': '{amount} {currency}',
+      'upcomingBills': 'ပေးရန်ရှိသောငွေများ',
+      'noUpcomingBills': 'ပေးရန်ရှိသောငွေ မရှိသေးပါ။ ✨',
+      'overdue': 'ရက်လွန်',
+      'dueToday': 'ယနေ့ပေးရန်ရှိ',
+      'dueTomorrow': 'မနက်ဖြန်ပေးရန်ရှိ',
+      'dueInDays': '{days} ရက်အတွင်း ပေးရန်ရှိ ({month}/{day})',
       'appTitle': 'ငွေကြေးစီမံသူ',
       'others': 'အခြား',
       'save': 'သိမ်းမည်',
@@ -181,9 +200,12 @@ class AppLocalizations {
       // Home Page
       'homeSummaryTitle': '{month} အတွက် အကျဉ်းချုပ်',
       'homeIncome': 'လက်ရှိလက်ကျန်ငွေ',
-      'homeSpent': 'ယခုလအတွက် သုံးငွေ',
+      'homeSpent': 'သုံးငွေ',
       'homeRemaining': 'ယခုလအတွက် {percent}% ကျန်ရှိသည်',
-      'homeMonthlyOverview': '{month} ခြုံငုံသုံးသပ်ချက်',
+      'homeCurrent': 'ယခုလအတွက်',
+      'homeBalance': 'လက်ကျန်ငွေ',
+      'homeThisMonth': 'ယခုလအတွက်',
+      'homeMonthlyOverview': 'ယခုလအတွက် သုံးစွဲမှု / ဘတ်ဂျက်',
       'homeBudgetUsed': 'သုံးစွဲပြီးသော ဘတ်ဂျက်',
       'homeBudgetFormat': '{spent} / {total}',
       'homePercentBudget': 'ဘတ်ဂျက်၏ {percent}%',
@@ -280,9 +302,10 @@ class AppLocalizations {
       'modalAmount': 'ပမာဏ ({currency})',
       'modalCategory': 'ကဏ္ဍ',
       'modalTimeOptional': 'အချိန် (ထည့်လိုလျှင်)',
-      'modalSaveChanges': 'အပြောင်းအလဲကို သိမ်းဆည်းမည်',
-      'modalSaveExpense': 'ကုန်ကျစရိတ် သိမ်းဆည်းမည်',
+      'modalSaveChanges': 'ပြင်ဆင်မည်',
+      'modalSaveExpense': 'သိမ်းဆည်းမည်',
       'modalSave': 'သိမ်းမည်',
+      'modalAmountLabel': 'ပမာဏ',
     }
   };
 

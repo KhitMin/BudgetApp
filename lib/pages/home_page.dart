@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../l10n/app_localizations.dart';
 import 'widgets/settings_modal.dart';
-import 'reporting_page.dart';
 import '../pages/widgets/notification_modal.dart';
 
 class HomePage extends StatefulWidget {
@@ -24,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _recentTransactions = [];
   Map<String, double> _topCategories = {};
   List<Map<String, dynamic>> _upcomingBills = [];
+  String _currencySymbol = '\$';
 
   // Helper map to get icons for categories
   final Map<String, IconData> categoryIcons = {
@@ -42,6 +42,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadDashboardData();
+    // Listen for changes in SharedPreferences
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.reload(); // Force reload preferences
+      setState(() {
+        _currencySymbol = prefs.getString('selectedCurrency') ?? 'MMK';
+      });
+    });
   }
 
   /// Loads all necessary data from SharedPreferences.
@@ -51,9 +58,15 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
 
-    // Load Balance and Budget
+    // Load Balance, Budget and Currency
     _currentBalance = prefs.getDouble('current_balance') ?? 0.0;
     _monthlyBudget = prefs.getDouble('monthly_budget') ?? 0.0;
+    _currencySymbol = prefs.getString('selectedCurrency') ?? 'MMK';
+    // Debug print to check values
+    print('Monthly Budget: $_monthlyBudget');
+    print('Currency Symbol: $_currencySymbol');
+    // Ensure preferences are up to date
+    await prefs.reload();
 
     // Process Expenses
     final expensesString = prefs.getString('allExpenses');
@@ -146,18 +159,12 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 24,
-            backgroundImage: NetworkImage(
-              'https://i.pravatar.cc/150?img=3',
-            ), // Placeholder
-          ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                AppLocalizations.of(context).t('appTitle'),
+                AppLocalizations.of(context).t('helloMessage'),
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
@@ -204,9 +211,6 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.account_balance_wallet_outlined,
             title: AppLocalizations.of(context).t('homeIncome'),
             amount: _currentBalance,
-            change:
-                '+12%', // Note: Change percentage is static for this example
-            changeColor: Colors.green,
           ),
         ),
         const SizedBox(width: 16),
@@ -215,8 +219,6 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.arrow_downward_rounded,
             title: AppLocalizations.of(context).t('homeSpent'),
             amount: _spentThisMonth,
-            change: '-8%', // Note: Change percentage is static for this example
-            changeColor: Colors.red,
           ),
         ),
       ],
@@ -227,8 +229,6 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required String title,
     required double amount,
-    required String change,
-    required Color changeColor,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -242,42 +242,55 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              NumberFormat.currency(
-                symbol: '\$',
-                decimalDigits: 0,
-              ).format(amount),
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(color: theme.hintColor, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  change,
-                  style: TextStyle(
-                    color: changeColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title == AppLocalizations.of(context).t('homeIncome')
+                                ? AppLocalizations.of(context).t('homeCurrent')
+                                : AppLocalizations.of(context).t('homeThisMonth'),
+                            style: TextStyle(
+                              color: theme.hintColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            title == AppLocalizations.of(context).t('homeIncome')
+                                ? AppLocalizations.of(context).t('homeBalance')
+                                : AppLocalizations.of(context).t('homeSpent'),
+                            style: TextStyle(
+                              color: theme.hintColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "${NumberFormat("#,##0").format(amount)}",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -314,27 +327,19 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             Text(
-              AppLocalizations.of(context).t('homeMonthlyOverview', 
-                args: {'month': DateFormat.MMMM().format(DateTime.now())}),
+              AppLocalizations.of(context).t('homeMonthlyOverview'),
               style: TextStyle(color: theme.hintColor),
             ),
             const SizedBox(height: 16),
             if (_monthlyBudget > 0) ...[
               Row(
                 children: [
-                  Text(
-                    AppLocalizations.of(context).t('planningPlannedBudget'),
-                    style: TextStyle(fontSize: 14, color: theme.hintColor),
-                  ),
                   const Spacer(),
                   Text.rich(
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: NumberFormat.currency(
-                            symbol: '\$',
-                            decimalDigits: 0,
-                          ).format(_spentThisMonth),
+                          text: "${_currencySymbol}${NumberFormat("#,##0").format(_spentThisMonth)}",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -342,7 +347,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         TextSpan(
                           text:
-                              ' / ${NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(_monthlyBudget)}',
+                              ' / ${_currencySymbol}${NumberFormat("#,##0").format(_monthlyBudget)}',
                           style: TextStyle(
                             color: theme.hintColor,
                             fontSize: 14,
@@ -440,7 +445,7 @@ class _HomePageState extends State<HomePage> {
         style: TextStyle(color: theme.hintColor),
       ),
       trailing: Text(
-        NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(amount),
+        "${_currencySymbol}${NumberFormat("#,##0").format(amount)}",
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
       ),
     );
@@ -524,7 +529,7 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "-${NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount)}",
+            "-${_currencySymbol}${NumberFormat("#,##0").format(amount)}",
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           Text(
