@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/currency_provider.dart';
@@ -19,7 +20,7 @@ Future<void> showSettingsModal(BuildContext context) async {
           final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
           final loc = AppLocalizations.of(context);
 
-          const List<String> currencyOptions = ['MMK', '\$', '₩'];
+          const List<String> currencyOptions = ['MMK', '\$', '₩', '฿'];
           final String currentCurrency = currencyOptions.contains(currencyProvider.currencySymbol)
               ? currencyProvider.currencySymbol
               : 'MMK';
@@ -77,10 +78,29 @@ Future<void> showSettingsModal(BuildContext context) async {
                       DropdownMenuItem(value: 'MMK', child: Text(loc.t('currencyMMK'))),
                       DropdownMenuItem(value: '\$', child: Text(loc.t('currencyUSD'))),
                       DropdownMenuItem(value: '₩', child: Text(loc.t('currencyKRW'))),
+                      DropdownMenuItem(value: '฿', child: Text(loc.t('currencyThaiBaht'))),
                     ],
                     onChanged: (c) {
                       if (c != null) currencyProvider.setCurrency(c);
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: InkWell(
+                      onTap: () {
+                        launchUrl(
+                          Uri.parse('https://khitmin.web.app'),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                      child: Text(
+                        'Proudly Developed by Khit Min',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],

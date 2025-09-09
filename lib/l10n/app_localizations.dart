@@ -12,6 +12,7 @@ class AppLocalizations {
   static const Map<String, Map<String, String>> _localizedValues = {
     'en': {
       // General
+
       'appName': 'My Budget Planner',
       'helloMessage': 'Hello, Welcome! 👋',
       'currencyDisplayDefault': '{amount} {currency}',
@@ -164,6 +165,7 @@ class AppLocalizations {
       'currencyMMK': 'Myanmar Kyat (MMK)',
       'currencyUSD': 'US Dollar (\$)',
       'currencyKRW': 'Korean Won (₩)',
+      'currencyThaiBaht': 'Thai Baht (฿)',
 
       // Expense Input Modal
       'modalEditExpense': 'Edit Expense',
@@ -333,6 +335,7 @@ class AppLocalizations {
       'currencyMMK': 'မြန်မာကျပ် (MMK)',
       'currencyUSD': 'အမေရိကန်ဒေါ်လာ (\$)',
       'currencyKRW': 'ကိုရီးယားဝမ် (₩)',
+      'currencyThaiBaht': 'ထိုင်းဘတ် (฿)',
 
       // Expense Input Modal
       'modalEditExpense': 'ကုန်ကျစရိတ် ပြင်ဆင်ရန်',
